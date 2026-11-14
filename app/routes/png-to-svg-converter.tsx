@@ -26,6 +26,7 @@ import {
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
+  matchesOutputSourceFile,
   type OutputSourceSnapshot,
 } from "~/client/lib/converter/sourceSnapshots";
 import {
@@ -1085,6 +1086,7 @@ type HistoryItem = {
   svgBytes?: number;
   stamp: number;
   sourceFileName?: string;
+  sourceFile?: File;
   sourceMimeType?: string;
   sourceFileSize?: number;
   sourcePreviewUrl?: string;
@@ -1117,13 +1119,6 @@ function mergeOutputSourceSnapshot(
     sourceFileSize: item.sourceFileSize ?? existing.sourceFileSize,
     sourcePreviewUrl: existing.sourcePreviewUrl ?? item.sourcePreviewUrl,
   };
-}
-
-function outputMatchesActiveSource(
-  item: Pick<HistoryItem, "sourceFileName">,
-  currentFile: File | null,
-): boolean {
-  return !item.sourceFileName || currentFile?.name === item.sourceFileName;
 }
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1204,6 +1199,7 @@ export function PngToSvgRouteImplementation({
         replaceStamp: number | null;
         startedAt: number;
         fileName: string;
+        sourceFile: File;
         sourceSnapshot: OutputSourceSnapshot;
       }
     >(),
@@ -1290,6 +1286,7 @@ export function PngToSvgRouteImplementation({
         jobStartedAt: submitted?.startedAt,
         jobCompletedAt: Date.now(),
         sourceFileName: submitted?.fileName,
+        sourceFile: submitted?.sourceFile,
         sourceMimeType: submitted?.sourceSnapshot.sourceMimeType,
         sourceFileSize: submitted?.sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: submitted?.sourceSnapshot.sourcePreviewUrl,
@@ -1414,16 +1411,25 @@ export function PngToSvgRouteImplementation({
   }
 
   const uploadPreparationRef = React.useRef(0);
-  React.useEffect(() => () => { uploadPreparationRef.current++; }, []);
+  const selectedUploadRef = React.useRef<File | null>(null);
+  React.useEffect(() => () => {
+    uploadPreparationRef.current++;
+    selectedUploadRef.current = null;
+  }, []);
 
   const imagePaste = useImagePaste({ onFile: handleNewFile, onError: setErr, maxBytes: MAX_UPLOAD_BYTES });
 
   async function handleNewFile(f: File) {
     imagePaste.clear();
     const preparationId = ++uploadPreparationRef.current;
+    selectedUploadRef.current = null;
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     queuedConversionRef.current = null;
+    submitInProgressRef.current = false;
+    pendingReplaceStampRef.current = null;
+    pendingOutputSettingsRef.current = null;
+    setUpdatingOutputStamp(null);
 
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1453,6 +1459,7 @@ export function PngToSvgRouteImplementation({
     }
     if (preparationId !== uploadPreparationRef.current) return;
     const chosen = prepared.file;
+    selectedUploadRef.current = chosen;
 
     setFile(chosen);
     setDims({ w: prepared.header.width, h: prepared.header.height, mp: prepared.header.width * prepared.header.height / 1_000_000 });
@@ -1499,6 +1506,12 @@ export function PngToSvgRouteImplementation({
     presetIdForSubmit: string = activePreset,
     options: { allowWhileBusy?: boolean } = {},
   ) {
+    const preparationId = uploadPreparationRef.current;
+    const ownsUpload = () =>
+      preparationId === uploadPreparationRef.current &&
+      targetFile === selectedUploadRef.current;
+    if (!ownsUpload()) return;
+
     if ((submitInProgressRef.current || busy) && !options.allowWhileBusy) {
       setInfo("Conversion already running. The SVG will appear below automatically.");
       return;
@@ -1511,12 +1524,14 @@ export function PngToSvgRouteImplementation({
     try {
       await validateBeforeSubmit(targetFile);
     } catch (e: any) {
+      if (!ownsUpload()) return;
       submitInProgressRef.current = false;
       setConversionPhase("idle");
       setInfo(null);
       setErr(e?.message || "Image is too large.");
       return;
     }
+    if (!ownsUpload()) return;
 
     const effective = getEffectiveSettings(inputSettings);
 
@@ -1562,6 +1577,7 @@ export function PngToSvgRouteImplementation({
       replaceStamp,
       startedAt,
       fileName: targetFile.name,
+      sourceFile: targetFile,
       sourceSnapshot,
     });
     if (!replaceStamp) {
@@ -1579,6 +1595,7 @@ export function PngToSvgRouteImplementation({
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: targetFile.name,
+        sourceFile: targetFile,
         sourceMimeType: sourceSnapshot.sourceMimeType,
         sourceFileSize: sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
@@ -1733,12 +1750,17 @@ export function PngToSvgRouteImplementation({
     );
   }
 
-  function submitOutputUpdate(stamp: number) {
+  async function submitOutputUpdate(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp) as
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
     if (!item) return;
-    if (!outputMatchesActiveSource(item, file) || !file) {
+    const preparationId = uploadPreparationRef.current;
+    const isCurrent = () => preparationId === uploadPreparationRef.current &&
+      file === selectedUploadRef.current && historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       setHistory((prev) =>
         prev.map((candidate) =>
           candidate.stamp === stamp
@@ -1781,12 +1803,17 @@ export function PngToSvgRouteImplementation({
     );
   }
 
-  function retryOutputJob(stamp: number) {
+  async function retryOutputJob(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp) as
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
     if (!item) return;
-    if (!outputMatchesActiveSource(item, file) || !file) {
+    const preparationId = uploadPreparationRef.current;
+    const isCurrent = () => preparationId === uploadPreparationRef.current &&
+      file === selectedUploadRef.current && historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       setHistory((prev) =>
         prev.map((candidate) =>
           candidate.stamp === stamp
@@ -1978,6 +2005,7 @@ export function PngToSvgRouteImplementation({
                       onClick={() => {
                         imagePaste.clear();
                         uploadPreparationRef.current++;
+                        selectedUploadRef.current = null;
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
@@ -1989,6 +2017,9 @@ export function PngToSvgRouteImplementation({
                         setConversionPhase("idle");
                         submitInProgressRef.current = false;
                         queuedConversionRef.current = null;
+                        pendingReplaceStampRef.current = null;
+                        pendingOutputSettingsRef.current = null;
+                        setUpdatingOutputStamp(null);
                       }}
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-white text-slate-600 cursor-pointer hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >

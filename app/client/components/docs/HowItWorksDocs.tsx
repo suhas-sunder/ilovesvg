@@ -171,7 +171,7 @@ export function DocsHero({
               Hub
             </Link>
           </div>
-          <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Preset speed color scale">
+          <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Preset speed color scale">
             {HERO_SPEEDS.map((speed) => {
               const badge = getPresetIntensityBadge({ backendIntensity: speed });
               return (
