@@ -1,0 +1,86 @@
+[
+  {
+    "engine": "chromium",
+    "mode": "clean",
+    "width": 320,
+    "height": 240,
+    "hole": 0,
+    "body": 255,
+    "bridge": 255,
+    "island": 255
+  },
+  {
+    "engine": "chromium",
+    "mode": "recovered",
+    "width": 320,
+    "height": 240,
+    "hole": 0,
+    "body": 255,
+    "bridge": 255,
+    "island": 255
+  },
+  {
+    "engine": "chromium",
+    "mode": "transparent",
+    "cornerAlpha": 0,
+    "center": [
+      11,
+      45,
+      255,
+      255
+    ]
+  },
+  {
+    "engine": "chromium",
+    "mode": "opaque",
+    "cornerAlpha": 255,
+    "center": [
+      11,
+      45,
+      255,
+      255
+    ]
+  },
+  {
+    "engine": "webkit",
+    "mode": "clean",
+    "width": 320,
+    "height": 240,
+    "hole": 0,
+    "body": 255,
+    "bridge": 255,
+    "island": 255
+  },
+  {
+    "engine": "webkit",
+    "mode": "recovered",
+    "width": 320,
+    "height": 240,
+    "hole": 0,
+    "body": 255,
+    "bridge": 255,
+    "island": 255
+  },
+  {
+    "engine": "webkit",
+    "mode": "transparent",
+    "cornerAlpha": 0,
+    "center": [
+      11,
+      45,
+      255,
+      255
+    ]
+  },
+  {
+    "engine": "webkit",
+    "mode": "opaque",
+    "cornerAlpha": 255,
+    "center": [
+      11,
+      45,
+      255,
+      255
+    ]
+  }
+]

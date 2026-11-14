@@ -1,0 +1,295 @@
+{
+  "note": "Local cold Chromium measurements with third-party requests blocked; not field Core Web Vitals, production timings or a revenue forecast. Route chunks exclude shared imports; inventory totals are not per-page payloads.",
+  "bundles": {
+    "baseline": {
+      "totalBytes": 7193463,
+      "totalGzip": 2710752,
+      "routes": {
+        "how-it-works.exporting-and-downloads": {
+          "name": "how-it-works.exporting-and-downloads-D0CJ3zDZ.js",
+          "bytes": 2086,
+          "gzip": 973
+        },
+        "how-it-works.troubleshooting": {
+          "name": "how-it-works.troubleshooting-0Syg_-Cw.js",
+          "bytes": 2313,
+          "gzip": 1092
+        },
+        "png-to-svg-for-cricut": {
+          "name": "png-to-svg-for-cricut-DRU9LltM.js",
+          "bytes": 39127,
+          "gzip": 12312
+        },
+        "svg-background-editor": {
+          "name": "svg-background-editor-zX69xeU7.js",
+          "bytes": 42788,
+          "gzip": 12655
+        },
+        "author.suhas-sunder": null,
+        "svg-sprite-generator": null
+      }
+    },
+    "candidate": {
+      "totalBytes": 7264802,
+      "totalGzip": 2734157,
+      "routes": {
+        "how-it-works.exporting-and-downloads": {
+          "name": "how-it-works.exporting-and-downloads-B1hUh3ES.js",
+          "bytes": 24383,
+          "gzip": 6701
+        },
+        "how-it-works.troubleshooting": {
+          "name": "how-it-works.troubleshooting-DsdXMUhi.js",
+          "bytes": 6414,
+          "gzip": 2645
+        },
+        "png-to-svg-for-cricut": {
+          "name": "png-to-svg-for-cricut-C51ID_ik.js",
+          "bytes": 42686,
+          "gzip": 13429
+        },
+        "svg-background-editor": {
+          "name": "svg-background-editor-Cl7asK_A.js",
+          "bytes": 42560,
+          "gzip": 12420
+        },
+        "author.suhas-sunder": {
+          "name": "author.suhas-sunder-D8e4SmoJ.js",
+          "bytes": 4855,
+          "gzip": 1978
+        },
+        "svg-sprite-generator": {
+          "name": "svg-sprite-generator-BSnfGZ1h.js",
+          "bytes": 29521,
+          "gzip": 11137
+        }
+      }
+    }
+  },
+  "navigation": [
+    {
+      "label": "baseline",
+      "route": "/",
+      "samples": [
+        {
+          "domContentLoadedMs": 215.29999999701977,
+          "loadMs": 322.90000000596046,
+          "localTransferBytes": 549560,
+          "localRequests": 31,
+          "documentBytes": 254252
+        },
+        {
+          "domContentLoadedMs": 137,
+          "loadMs": 156.20000000298023,
+          "localTransferBytes": 549560,
+          "localRequests": 31,
+          "documentBytes": 254252
+        },
+        {
+          "domContentLoadedMs": 138.20000000298023,
+          "loadMs": 156.70000000298023,
+          "localTransferBytes": 549560,
+          "localRequests": 31,
+          "documentBytes": 254252
+        }
+      ],
+      "medianDOMContentLoadedMs": 138.20000000298023
+    },
+    {
+      "label": "baseline",
+      "route": "/how-it-works/exporting-and-downloads",
+      "samples": [
+        {
+          "domContentLoadedMs": 34.79999999701977,
+          "loadMs": 90.09999999403954,
+          "localTransferBytes": 273905,
+          "localRequests": 15,
+          "documentBytes": 93826
+        },
+        {
+          "domContentLoadedMs": 84.09999999403954,
+          "loadMs": 92,
+          "localTransferBytes": 273905,
+          "localRequests": 15,
+          "documentBytes": 93826
+        },
+        {
+          "domContentLoadedMs": 37.79999999701977,
+          "loadMs": 89.09999999403954,
+          "localTransferBytes": 273905,
+          "localRequests": 15,
+          "documentBytes": 93826
+        }
+      ],
+      "medianDOMContentLoadedMs": 37.79999999701977
+    },
+    {
+      "label": "baseline",
+      "route": "/png-to-svg-for-cricut",
+      "samples": [
+        {
+          "domContentLoadedMs": 135,
+          "loadMs": 153.40000000596046,
+          "localTransferBytes": 536920,
+          "localRequests": 31,
+          "documentBytes": 246971
+        },
+        {
+          "domContentLoadedMs": 141.40000000596046,
+          "loadMs": 161,
+          "localTransferBytes": 536920,
+          "localRequests": 31,
+          "documentBytes": 246971
+        },
+        {
+          "domContentLoadedMs": 157.19999998807907,
+          "loadMs": 177.59999999403954,
+          "localTransferBytes": 536920,
+          "localRequests": 31,
+          "documentBytes": 246971
+        }
+      ],
+      "medianDOMContentLoadedMs": 141.40000000596046
+    },
+    {
+      "label": "baseline",
+      "route": "/svg-background-editor",
+      "samples": [
+        {
+          "domContentLoadedMs": 129.29999999701977,
+          "loadMs": 135,
+          "localTransferBytes": 323478,
+          "localRequests": 20,
+          "documentBytes": 238449
+        },
+        {
+          "domContentLoadedMs": 133.29999999701977,
+          "loadMs": 139.69999998807907,
+          "localTransferBytes": 323478,
+          "localRequests": 20,
+          "documentBytes": 238449
+        },
+        {
+          "domContentLoadedMs": 44.29999999701977,
+          "loadMs": 131.59999999403954,
+          "localTransferBytes": 323478,
+          "localRequests": 20,
+          "documentBytes": 238449
+        }
+      ],
+      "medianDOMContentLoadedMs": 129.29999999701977
+    },
+    {
+      "label": "candidate",
+      "route": "/",
+      "samples": [
+        {
+          "domContentLoadedMs": 179.09999999403954,
+          "loadMs": 198.5,
+          "localTransferBytes": 550245,
+          "localRequests": 31,
+          "documentBytes": 255644
+        },
+        {
+          "domContentLoadedMs": 169.5,
+          "loadMs": 188.70000000298023,
+          "localTransferBytes": 550245,
+          "localRequests": 31,
+          "documentBytes": 255644
+        },
+        {
+          "domContentLoadedMs": 149.09999999403954,
+          "loadMs": 176.5,
+          "localTransferBytes": 550245,
+          "localRequests": 31,
+          "documentBytes": 255644
+        }
+      ],
+      "medianDOMContentLoadedMs": 169.5
+    },
+    {
+      "label": "candidate",
+      "route": "/how-it-works/exporting-and-downloads",
+      "samples": [
+        {
+          "domContentLoadedMs": 111.09999999403954,
+          "loadMs": 118.79999999701977,
+          "localTransferBytes": 323211,
+          "localRequests": 24,
+          "documentBytes": 111966
+        },
+        {
+          "domContentLoadedMs": 41.599999994039536,
+          "loadMs": 107.70000000298023,
+          "localTransferBytes": 323211,
+          "localRequests": 24,
+          "documentBytes": 111966
+        },
+        {
+          "domContentLoadedMs": 118.79999999701977,
+          "loadMs": 128.70000000298023,
+          "localTransferBytes": 323211,
+          "localRequests": 24,
+          "documentBytes": 111966
+        }
+      ],
+      "medianDOMContentLoadedMs": 111.09999999403954
+    },
+    {
+      "label": "candidate",
+      "route": "/png-to-svg-for-cricut",
+      "samples": [
+        {
+          "domContentLoadedMs": 169.20000000298023,
+          "loadMs": 189.59999999403954,
+          "localTransferBytes": 540010,
+          "localRequests": 31,
+          "documentBytes": 251037
+        },
+        {
+          "domContentLoadedMs": 144,
+          "loadMs": 163,
+          "localTransferBytes": 540010,
+          "localRequests": 31,
+          "documentBytes": 251037
+        },
+        {
+          "domContentLoadedMs": 166.69999998807907,
+          "loadMs": 192.29999999701977,
+          "localTransferBytes": 540010,
+          "localRequests": 31,
+          "documentBytes": 251037
+        }
+      ],
+      "medianDOMContentLoadedMs": 166.69999998807907
+    },
+    {
+      "label": "candidate",
+      "route": "/svg-background-editor",
+      "samples": [
+        {
+          "domContentLoadedMs": 138.90000000596046,
+          "loadMs": 145.40000000596046,
+          "localTransferBytes": 323384,
+          "localRequests": 20,
+          "documentBytes": 235877
+        },
+        {
+          "domContentLoadedMs": 142.70000000298023,
+          "loadMs": 154,
+          "localTransferBytes": 323384,
+          "localRequests": 20,
+          "documentBytes": 235877
+        },
+        {
+          "domContentLoadedMs": 186.29999999701977,
+          "loadMs": 193.70000000298023,
+          "localTransferBytes": 323384,
+          "localRequests": 20,
+          "documentBytes": 235877
+        }
+      ],
+      "medianDOMContentLoadedMs": 142.70000000298023
+    }
+  ]
+}

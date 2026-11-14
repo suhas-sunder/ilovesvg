@@ -1,0 +1,452 @@
+{
+  "projectId": 289839,
+  "periods": [
+    {
+      "from": "2026-10-16T00:00:00Z",
+      "to": "2026-11-12T23:59:59Z",
+      "query": {
+        "series": [
+          {
+            "kind": "EventsNode",
+            "event": "tool_engagement"
+          }
+        ],
+        "dateRange": {
+          "date_from": "2026-10-16T00:00:00Z",
+          "date_to": "2026-11-12T23:59:59Z"
+        },
+        "breakdownFilter": {
+          "breakdown_limit": 50,
+          "breakdown_path_cleaning": true,
+          "breakdowns": [
+            {
+              "property": "route_path",
+              "type": "event"
+            },
+            {
+              "property": "tool_action",
+              "type": "event"
+            }
+          ]
+        }
+      },
+      "summary": [
+        {
+          "dimension": "/svg-background-editor::file_upload",
+          "events": 161
+        },
+        {
+          "dimension": "/svg-background-editor::preview_generated",
+          "events": 144
+        },
+        {
+          "dimension": "/svg-background-editor::download_export",
+          "events": 105
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::file_upload",
+          "events": 79
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::download_export",
+          "events": 63
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::file_upload",
+          "events": 57
+        },
+        {
+          "dimension": "/base64-to-svg::input_changed",
+          "events": 48
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::preview_generated",
+          "events": 47
+        },
+        {
+          "dimension": "/svg-background-editor::settings_changed",
+          "events": 43
+        },
+        {
+          "dimension": "/base64-to-svg::preview_generated",
+          "events": 39
+        },
+        {
+          "dimension": "/base64-to-svg::settings_changed",
+          "events": 38
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::settings_changed",
+          "events": 34
+        },
+        {
+          "dimension": "/svg-preview-viewer::file_upload",
+          "events": 32
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::conversion_started",
+          "events": 30
+        },
+        {
+          "dimension": "/free-color-picker::file_upload",
+          "events": 29
+        },
+        {
+          "dimension": "/free-color-picker::preview_generated",
+          "events": 26
+        },
+        {
+          "dimension": "/svg-preview-viewer::preview_generated",
+          "events": 26
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::conversion_completed",
+          "events": 26
+        },
+        {
+          "dimension": "/base64-to-svg::conversion_started",
+          "events": 25
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::conversion_started",
+          "events": 25
+        },
+        {
+          "dimension": "/base64-to-svg::conversion_completed",
+          "events": 22
+        },
+        {
+          "dimension": "/base64-to-svg::download_export",
+          "events": 21
+        },
+        {
+          "dimension": "/free-color-picker::copy_output",
+          "events": 21
+        },
+        {
+          "dimension": "/base64-to-svg::input_cleared",
+          "events": 20
+        },
+        {
+          "dimension": "/free-color-picker::settings_changed",
+          "events": 18
+        },
+        {
+          "dimension": "/svg-preview-viewer::settings_changed",
+          "events": 14
+        },
+        {
+          "dimension": "/base64-to-svg::copy_output",
+          "events": 13
+        },
+        {
+          "dimension": "/svg-background-editor::validation_error",
+          "events": 12
+        },
+        {
+          "dimension": "/base64-to-svg::sample_loaded",
+          "events": 11
+        },
+        {
+          "dimension": "/svg-background-editor::copy_output",
+          "events": 10
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::download_export",
+          "events": 10
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::conversion_completed",
+          "events": 9
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::file_upload",
+          "events": 9
+        },
+        {
+          "dimension": "/svg-background-editor::sample_loaded",
+          "events": 8
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::file_upload",
+          "events": 7
+        },
+        {
+          "dimension": "/svg-background-editor::input_changed",
+          "events": 5
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::preview_generated",
+          "events": 5
+        },
+        {
+          "dimension": "/svg-background-editor::paste_input",
+          "events": 4
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::copy_output",
+          "events": 4
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::download_export",
+          "events": 4
+        },
+        {
+          "dimension": "/free-color-picker::validation_error",
+          "events": 3
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::input_changed",
+          "events": 3
+        },
+        {
+          "dimension": "/free-color-picker::download_export",
+          "events": 2
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::settings_changed",
+          "events": 2
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::validation_error",
+          "events": 2
+        },
+        {
+          "dimension": "/svg-embed-code-generator::file_upload",
+          "events": 2
+        },
+        {
+          "dimension": "/svg-embed-code-generator::preview_generated",
+          "events": 2
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::validation_error",
+          "events": 2
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::validation_error",
+          "events": 2
+        },
+        {
+          "dimension": "/svg-embed-code-generator::validation_error",
+          "events": 1
+        },
+        {
+          "dimension": "Other (i.e. all remaining values)::Other (i.e. all remaining values)",
+          "events": 4
+        }
+      ]
+    },
+    {
+      "from": "2026-08-15T00:00:00Z",
+      "to": "2026-11-12T23:59:59Z",
+      "summary": [
+        {
+          "dimension": "/svg-background-editor::file_upload",
+          "events": 578
+        },
+        {
+          "dimension": "/svg-background-editor::preview_generated",
+          "events": 478
+        },
+        {
+          "dimension": "/svg-background-editor::download_export",
+          "events": 346
+        },
+        {
+          "dimension": "/base64-to-svg::settings_changed",
+          "events": 248
+        },
+        {
+          "dimension": "/base64-to-svg::input_changed",
+          "events": 242
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::file_upload",
+          "events": 226
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::download_export",
+          "events": 205
+        },
+        {
+          "dimension": "/base64-to-svg::preview_generated",
+          "events": 190
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::file_upload",
+          "events": 166
+        },
+        {
+          "dimension": "/base64-to-svg::input_cleared",
+          "events": 162
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::preview_generated",
+          "events": 160
+        },
+        {
+          "dimension": "/svg-background-editor::settings_changed",
+          "events": 141
+        },
+        {
+          "dimension": "/base64-to-svg::conversion_started",
+          "events": 126
+        },
+        {
+          "dimension": "/free-color-picker::file_upload",
+          "events": 125
+        },
+        {
+          "dimension": "/free-color-picker::preview_generated",
+          "events": 120
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::settings_changed",
+          "events": 118
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::conversion_started",
+          "events": 110
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::conversion_started",
+          "events": 109
+        },
+        {
+          "dimension": "/base64-to-svg::conversion_completed",
+          "events": 104
+        },
+        {
+          "dimension": "/base64-to-svg::download_export",
+          "events": 104
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::conversion_completed",
+          "events": 99
+        },
+        {
+          "dimension": "/free-color-picker::settings_changed",
+          "events": 76
+        },
+        {
+          "dimension": "/base64-to-svg::copy_output",
+          "events": 74
+        },
+        {
+          "dimension": "/svg-background-editor::validation_error",
+          "events": 66
+        },
+        {
+          "dimension": "/svg-preview-viewer::file_upload",
+          "events": 64
+        },
+        {
+          "dimension": "/base64-to-svg::sample_loaded",
+          "events": 62
+        },
+        {
+          "dimension": "/svg-preview-viewer::preview_generated",
+          "events": 56
+        },
+        {
+          "dimension": "/free-color-picker::copy_output",
+          "events": 37
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::file_upload",
+          "events": 36
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::conversion_completed",
+          "events": 32
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::download_export",
+          "events": 29
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::download_export",
+          "events": 28
+        },
+        {
+          "dimension": "/svg-preview-viewer::settings_changed",
+          "events": 23
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::file_upload",
+          "events": 23
+        },
+        {
+          "dimension": "/svg-background-editor::sample_loaded",
+          "events": 22
+        },
+        {
+          "dimension": "/svg-background-editor::copy_output",
+          "events": 21
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::preview_generated",
+          "events": 18
+        },
+        {
+          "dimension": "/svg-background-editor::paste_input",
+          "events": 12
+        },
+        {
+          "dimension": "/free-color-picker::download_export",
+          "events": 11
+        },
+        {
+          "dimension": "/svg-background-editor::input_changed",
+          "events": 11
+        },
+        {
+          "dimension": "/svg-embed-code-generator::file_upload",
+          "events": 11
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::sample_loaded",
+          "events": 10
+        },
+        {
+          "dimension": "/line-art-to-svg-converter::settings_changed",
+          "events": 9
+        },
+        {
+          "dimension": "/svg-embed-code-generator::preview_generated",
+          "events": 9
+        },
+        {
+          "dimension": "/svg-resize-and-scale-editor::input_changed",
+          "events": 9
+        },
+        {
+          "dimension": "/svg-to-pdf-converter::validation_error",
+          "events": 8
+        },
+        {
+          "dimension": "/svg-resizer-for-canva::settings_changed",
+          "events": 6
+        },
+        {
+          "dimension": "/svg-resizer-for-figma::download_export",
+          "events": 6
+        },
+        {
+          "dimension": "/svg-resizer-for-figma::file_upload",
+          "events": 6
+        },
+        {
+          "dimension": "/free-color-picker::validation_error",
+          "events": 5
+        },
+        {
+          "dimension": "Other (i.e. all remaining values)::Other (i.e. all remaining values)",
+          "events": 53
+        }
+      ]
+    }
+  ],
+  "limitations": "Aggregate tool_engagement events, not unique people, sessions, funnels, search demand or revenue. Top 50 breakdown series include an Other bucket. No uploaded/private content queried."
+}

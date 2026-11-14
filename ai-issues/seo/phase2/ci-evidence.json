@@ -1,0 +1,22 @@
+{
+  "repository": "suhas-sunder/ilovesvg",
+  "verificationPullRequest": 13,
+  "mergeAllowed": false,
+  "foundation": {
+    "sha": "78dda78994ea90e7b3a839725021bc316463434e",
+    "runId": 43440813136,
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "integratedApplication": {
+    "sha": "40856446cf75a0a58070b72bf218002789bad48d",
+    "runId": 43532158019,
+    "jobId": 132252261464,
+    "workflow": "Technical reliability release validation",
+    "job": "node20-alpine",
+    "status": "completed",
+    "conclusion": "success",
+    "scope": "Exact F head including the staged predecessors; A-E individual heads were not separately run in GitHub CI."
+  },
+  "productionVerified": false
+}
