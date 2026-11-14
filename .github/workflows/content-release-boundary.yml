@@ -1,11 +1,14 @@
 name: Staged content boundary
 on:
-  pull_request:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
 permissions:
   contents: read
 jobs:
   boundary:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,17 +27,9 @@ jobs:
           node-version: 20
       - run: node scripts/weekly-seo-pipeline-test.mjs
         working-directory: trusted
-        if: hashFiles('trusted/scripts/content-release-boundary.mjs') != ''
       - name: Keep unapproved draft URLs out of production
         working-directory: trusted
-        if: hashFiles('trusted/scripts/content-release-boundary.mjs') != ''
         env:
           CONTENT_ROOT: ${{ github.workspace }}/candidate
           CONTENT_CANDIDATE_BRANCH: ${{ github.head_ref }}
         run: node scripts/content-release-boundary.mjs
-      - name: Bootstrap first installation without production writes
-        if: hashFiles('trusted/scripts/content-release-boundary.mjs') == ''
-        working-directory: candidate
-        run: |
-          node scripts/weekly-seo-pipeline-test.mjs
-          node scripts/content-release-boundary.mjs

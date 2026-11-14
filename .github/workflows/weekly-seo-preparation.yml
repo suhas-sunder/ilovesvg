@@ -25,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -107,11 +108,6 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const env = process.env;
-            const ref = await github.rest.git.getRef({ owner, repo, ref: `heads/${env.CANDIDATE_BRANCH}` });
-            const main = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
-            if (ref.data.object.sha !== env.CANDIDATE_SHA || main.data.object.sha !== env.VALIDATED_MAIN) {
-              throw new Error('Candidate or base moved after validation; skip this week. Re-review before rescheduling.');
-            }
             const marker = `[SEO ${env.RELEASE_WEEK}]`;
             for await (const response of github.paginate.iterator(github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 })) {
               if (response.data.some(pr => pr.title.startsWith(marker) || pr.head.ref === env.CANDIDATE_BRANCH)) {
@@ -119,6 +115,17 @@ jobs:
                 return;
               }
             }
-            await github.rest.pulls.create({ owner, repo, head: env.CANDIDATE_BRANCH, base: 'main', draft: true,
+            const [ref, main] = await Promise.all([
+              github.rest.git.getRef({ owner, repo, ref: `heads/${env.CANDIDATE_BRANCH}` }),
+              github.rest.git.getRef({ owner, repo, ref: 'heads/main' }),
+            ]);
+            if (ref.data.object.sha !== env.CANDIDATE_SHA || main.data.object.sha !== env.VALIDATED_MAIN) {
+              throw new Error('Candidate or base moved after validation; skip this week. Re-review before rescheduling.');
+            }
+            const draft = await github.rest.pulls.create({ owner, repo, head: env.CANDIDATE_BRANCH, base: 'main', draft: true,
               title: `${marker} ${env.CANDIDATE_ID}`,
               body: `Reviewed content candidate ${env.CANDIDATE_ID}.\n\nValidated SHA: ${env.CANDIDATE_SHA}\nBase/rollback: ${env.CANDIDATE_BASE}\n\nThis scheduled workflow only prepares a draft. Publication requires final screenshot/output review, confirmation that the branch and base still match these SHAs, and the documented release gates. No automatic merge or deployment is enabled. Record the actual publication SHA/date and metrics in ai-issues/seo/release-history.json after a separately authorized release.` });
+            if (draft.data.head.sha !== env.CANDIDATE_SHA || draft.data.base.sha !== env.VALIDATED_MAIN) {
+              await github.rest.pulls.update({ owner, repo, pull_number: draft.data.number, state: 'closed' });
+              throw new Error('Refs moved during draft creation. Closed the draft; re-review before rescheduling.');
+            }
