@@ -31,7 +31,7 @@ const sources = [
     '<circle cx="18" cy="10" r="6" fill="#004488" stroke="white" stroke-width="2" stroke-dasharray="none"/>',
     'width="38px" height="21" fill="#123456" aria-label="Ocean &lt; wave"',
   ) },
-  { name: "outlined.svg", text: '<svg viewBox="0,0,32,32"><path d="M2 28 12 4l3 7L24 3l6 25Z" fill="rgb(17 93 114)" stroke="currentColor" stroke-width="2" /></svg>' },
+  { name: "outlined.svg", text: '<svg viewBox="0,0,32,32"><path d="M.2e1+28 12 4l3 7L24.0 3l6 25Z" fill="rgb(17 93 114)" stroke="currentColor" stroke-width="2" /></svg>' },
 ];
 
 const evil = "https://svg-sprite-attacker.invalid/asset";
@@ -80,6 +80,10 @@ const rejects = [
   ["missing viewBox and units", svg(art, 'width="100%" height="24"'), /unsupported unit/],
   ["missing shape", svg("<title>Just a title</title>"), /no supported shapes/],
   ["invalid path command", svg('<path d="M0 0 U12 12"/>'), /invalid syntax/],
+  ["truncated hole after trailing decimal", svg('<path fill-rule="evenodd" d="M1 1 H23 V23 H1Z M6 6 H18 V18. H6Z"/>'), /invalid syntax/],
+  ["stray decimal point", svg('<path d="M1 1 L9..9"/>'), /invalid syntax/],
+  ["trailing decimal at end", svg('<path d="M1 1 L9 9."/>'), /invalid syntax/],
+  ["trailing decimal before exponent", svg('<path d="M1 1 L9 9.e0"/>'), /invalid syntax/],
   ["non-ASCII command case folding", svg('<path d="M1 1ſ7 7 14 14Z"/>'), /invalid syntax/],
   ["non-finite path", svg('<path d="M0 0 L1e999 12"/>'), /supported range/],
   ["invalid arc flag", svg('<path d="M0 0 A1 2 0 2 1 6 6"/>'), /arc flag/],
