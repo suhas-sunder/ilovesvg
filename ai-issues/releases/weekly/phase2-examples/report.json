@@ -1,0 +1,1066 @@
+{
+  "base": "http://127.0.0.1:5288/",
+  "assets": [
+    {
+      "id": "simple-logo",
+      "field": "source",
+      "bytes": 3826,
+      "hash": "6f161263d0632cf4a2f0f1d402c74f17169b078ccb6baa18b7fad1a7a60c13e5"
+    },
+    {
+      "id": "simple-logo",
+      "field": "traced",
+      "bytes": 5131,
+      "hash": "95fd6d57f431ceb246fa2f0fca46daef2b7798ad094c1c18f748c4ea90e2373c"
+    },
+    {
+      "id": "simple-logo",
+      "field": "preview",
+      "bytes": 3107,
+      "hash": "30e804e86ff05628bfe54e15fd0779ccac9f6c7b1e4beb40429da719ad0718d0"
+    },
+    {
+      "id": "flat-illustration",
+      "field": "source",
+      "bytes": 5624,
+      "hash": "bd5ae5c8a779fd059b922ee37b5267f5e9426e22956af0ce504e73b31a5f46e2"
+    },
+    {
+      "id": "flat-illustration",
+      "field": "traced",
+      "bytes": 3545,
+      "hash": "b9db7cf9aff448d69b41471fe36c4295273bd64e89066087c7a8c75b65eaa2a0"
+    },
+    {
+      "id": "flat-illustration",
+      "field": "preview",
+      "bytes": 5324,
+      "hash": "d7b9be7bdded4ba889caabf9f2f8f11d8bf0286f24f3075f3d119f608fc1abcb"
+    },
+    {
+      "id": "cut-mark",
+      "field": "source",
+      "bytes": 1435,
+      "hash": "5b7edd5ff3345c9d8bb6b23fa98605af8c0d6a45baf23c9d9d290e95c7809340"
+    },
+    {
+      "id": "cut-mark",
+      "field": "traced",
+      "bytes": 789,
+      "hash": "984815658ad51bbac834ea13fa3500b4d908b5d9da5cca82ce094969ce7d7a5d"
+    },
+    {
+      "id": "cut-mark",
+      "field": "preview",
+      "bytes": 1471,
+      "hash": "580cde5f966305b31cc279fda28fefb8a839f076bd5f4e0e97941f836100944c"
+    },
+    {
+      "id": "transparent-icon",
+      "field": "source",
+      "bytes": 3157,
+      "hash": "99234988b27a8cb2fed78f3118ced2e3a88b480425850637e9bcf713dc970337"
+    },
+    {
+      "id": "transparent-icon",
+      "field": "traced",
+      "bytes": 2321,
+      "hash": "c7182fa349391129739ce75263e6969cdd326fcbd8fc87d0708806ec5ebc69e9"
+    },
+    {
+      "id": "transparent-icon",
+      "field": "preview",
+      "bytes": 3002,
+      "hash": "c44193e3d1b5c9d51f229601db9de87567b345e420dfb7d5f0f5b7c6fd62ed24"
+    },
+    {
+      "id": "fine-lettering",
+      "field": "source",
+      "bytes": 1293,
+      "hash": "69c94d808e194e51d2250027d6d53c12619e74abb600ff5d080be075be8e4ab3"
+    },
+    {
+      "id": "fine-lettering",
+      "field": "traced",
+      "bytes": 2794,
+      "hash": "fb0516befbdaed8332c22e5710e5efae8f42005336973af3acc53670234354eb"
+    },
+    {
+      "id": "fine-lettering",
+      "field": "preview",
+      "bytes": 1681,
+      "hash": "58d158d5ac24455a51c2f58641ca45c4f1bbf2d8b3fc667d713ac54476e3a06f"
+    },
+    {
+      "id": "blue-marble",
+      "field": "source",
+      "bytes": 31530,
+      "hash": "9251fbc9e5ef674b0becfd980f4c280b69face3ce502e0fde952473c1ac55f8d"
+    },
+    {
+      "id": "blue-marble",
+      "field": "traced",
+      "bytes": 228591,
+      "hash": "354eaae47d16e0a2369d0ea222812be79933036d4b58c62e78f3f76647a47e3d"
+    },
+    {
+      "id": "blue-marble",
+      "field": "preview",
+      "bytes": 69538,
+      "hash": "21ec1820ac1f062a2cf050c5b0eccc1df4ab94226f8dee0f8b045d148fad410b"
+    }
+  ],
+  "cases": [
+    {
+      "engine": "chromium",
+      "width": 320,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 375,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 390,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 430,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 768,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 1024,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "chromium",
+      "width": 1440,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 320,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 375,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 390,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 430,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 768,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 1024,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "width": 1440,
+      "overflow": 0,
+      "headings": [
+        "Check what is inside your SVG",
+        "Real inputs and downloaded outputs",
+        "SVG output actions",
+        "Raster and document exports",
+        "Why file size changes",
+        "Choose the next step for your output",
+        "Useful next reads",
+        "Follow i🩵SVG On Social Media"
+      ],
+      "images": [
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 240,
+          "height": 240
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 320,
+          "height": 180
+        },
+        {
+          "width": 384,
+          "height": 384
+        },
+        {
+          "width": 384,
+          "height": 384
+        }
+      ],
+      "accessibility": [],
+      "errors": []
+    }
+  ],
+  "inspector": [
+    {
+      "engine": "chromium",
+      "counts": "Counts\nsvg\n1\npath\n1",
+      "pathSourceVisible": true
+    },
+    {
+      "engine": "webkit",
+      "counts": "Counts\nsvg\n1\npath\n1\n",
+      "pathSourceVisible": true
+    }
+  ],
+  "failures": []
+}

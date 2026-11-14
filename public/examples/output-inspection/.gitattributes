@@ -1,0 +1,4 @@
+# Reproducibility records describe the exact generated/downloaded bytes.
+*.svg -text
+*.png -text
+*.jpg -text
