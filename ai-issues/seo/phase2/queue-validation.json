@@ -1,0 +1,73 @@
+{
+  "plannerSelectsNothing": true,
+  "historyEmpty": true,
+  "ownerApprovalsFalse": true,
+  "wholeStackCorrectlyRejected": true,
+  "candidates": [
+    {
+      "id": "SVG-SEO-MAINTAINER",
+      "sha": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "base": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": [
+        "/svg-sprite-generator"
+      ]
+    },
+    {
+      "id": "SVG-SEO-MOBILE-HELP",
+      "sha": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "base": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": [
+        "/svg-sprite-generator"
+      ]
+    },
+    {
+      "id": "SVG-SEO-PATH-INSPECTION",
+      "sha": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "base": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": [
+        "/svg-sprite-generator"
+      ]
+    },
+    {
+      "id": "SVG-SEO-CRAFT-REVIEW",
+      "sha": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "base": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": [
+        "/svg-sprite-generator"
+      ]
+    },
+    {
+      "id": "SVG-SEO-BACKGROUND-HELP",
+      "sha": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "base": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": [
+        "/svg-sprite-generator"
+      ]
+    },
+    {
+      "id": "SVG-SEO-SPRITE-UTILITY",
+      "sha": "40856446cf75a0a58070b72bf218002789bad48d",
+      "base": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "exactAllowlist": true,
+      "indexableBudget": true,
+      "futureNewPageExposure": false,
+      "checkedFutureUrls": []
+    }
+  ],
+  "note": "Uses unchanged PR10 trusted assertion functions. No simulated publication dates or approvals persisted. Later stacked candidates remain blocked until predecessor publication/deployment is genuinely recorded."
+}

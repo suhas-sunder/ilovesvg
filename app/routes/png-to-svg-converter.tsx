@@ -26,6 +26,7 @@ import {
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
+  matchesOutputSourceFile,
   type OutputSourceSnapshot,
 } from "~/client/lib/converter/sourceSnapshots";
 import {
@@ -53,11 +54,13 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
-import DragArea from "~/client/components/ui/DragArea";
+import DragArea, { ReplaceFileButton } from "~/client/components/ui/DragArea";
+import { ImagePastePrompt, useImagePaste } from "~/client/components/ui/ImagePastePrompt";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { prepareRasterUpload, readRasterHeader } from "~/client/lib/converter/prepareRasterUpload";
 import {
   LayerPaletteEditor,
   type EditableSvgLayer,
@@ -137,7 +140,7 @@ const LIVE_MED_MS = 1500;
 ======================== */
 type ReleaseFn = () => void;
 type Gate = {
-  acquireOrQueue: () => Promise<ReleaseFn>;
+  acquireOrQueue: (diagnostics?: null, signal?: AbortSignal) => Promise<ReleaseFn>;
   running: number;
   queued: number;
 };
@@ -243,13 +246,14 @@ export async function action({ request }: ActionFunctionArgs) {
     let release: ReleaseFn | null = null;
 
     try {
-      release = await gate.acquireOrQueue();
+      release = await gate.acquireOrQueue(null, request.signal);
     } catch (e: any) {
+      if (request.signal.aborted) return new Response(null, { status: 499 });
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
           error:
-            "Server is busy converting other images. We'll retry automatically.",
+            "Server is busy converting other images. Please wait and try again.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -1082,6 +1086,7 @@ type HistoryItem = {
   svgBytes?: number;
   stamp: number;
   sourceFileName?: string;
+  sourceFile?: File;
   sourceMimeType?: string;
   sourceFileSize?: number;
   sourcePreviewUrl?: string;
@@ -1114,13 +1119,6 @@ function mergeOutputSourceSnapshot(
     sourceFileSize: item.sourceFileSize ?? existing.sourceFileSize,
     sourcePreviewUrl: existing.sourcePreviewUrl ?? item.sourcePreviewUrl,
   };
-}
-
-function outputMatchesActiveSource(
-  item: Pick<HistoryItem, "sourceFileName">,
-  currentFile: File | null,
-): boolean {
-  return !item.sourceFileName || currentFile?.name === item.sourceFileName;
 }
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1201,6 +1199,7 @@ export function PngToSvgRouteImplementation({
         replaceStamp: number | null;
         startedAt: number;
         fileName: string;
+        sourceFile: File;
         sourceSnapshot: OutputSourceSnapshot;
       }
     >(),
@@ -1231,28 +1230,13 @@ export function PngToSvgRouteImplementation({
   }, [busy, file]);
 
   React.useEffect(() => {
-    if (fetcher.data?.retryAfterMs) setErr(null);
-    else if (fetcher.data?.error) setErr(fetcher.data.error);
-    else setErr(null);
-
     if (fetcher.data?.retryAfterMs) {
-      const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const retryFile = file;
-      const retrySettings = settings;
-      const retryPreset = activePreset;
-      const t = setTimeout(() => {
-        if (retryFile) {
-          void submitConvertForFile(retryFile, retrySettings, retryPreset, {
-            allowWhileBusy: true,
-          });
-        }
-      }, ms);
-      return () => clearTimeout(t);
+      const seconds = Math.max(1, Math.ceil(fetcher.data.retryAfterMs / 1000));
+      setErr(`${fetcher.data.error || "Server is busy."} Wait at least ${seconds}s, then try converting again.`);
     } else {
-      setInfo(null);
+      setErr(fetcher.data?.error ?? null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInfo(null);
   }, [fetcher.data]);
 
   React.useEffect(() => {
@@ -1302,6 +1286,7 @@ export function PngToSvgRouteImplementation({
         jobStartedAt: submitted?.startedAt,
         jobCompletedAt: Date.now(),
         sourceFileName: submitted?.fileName,
+        sourceFile: submitted?.sourceFile,
         sourceMimeType: submitted?.sourceSnapshot.sourceMimeType,
         sourceFileSize: submitted?.sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: submitted?.sourceSnapshot.sourcePreviewUrl,
@@ -1409,16 +1394,6 @@ export function PngToSvgRouteImplementation({
     return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
   }, []);
 
-  async function measureAndSet(f: File) {
-    try {
-      const { w, h } = await getImageSize(f);
-      const mp = (w * h) / 1_000_000;
-      setDims({ w, h, mp });
-    } catch {
-      setDims(null);
-    }
-  }
-
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const f = input.files?.[0];
@@ -1435,16 +1410,26 @@ export function PngToSvgRouteImplementation({
     await handleNewFile(f);
   }
 
-  async function handleNewFile(f: File) {
-    if (!ALLOWED_MIME.has(f.type)) {
-      setInfo(null);
-      setErr(`Please choose a ${ACCEPTED_UPLOAD_TYPES} image.`);
-      return;
-    }
+  const uploadPreparationRef = React.useRef(0);
+  const selectedUploadRef = React.useRef<File | null>(null);
+  React.useEffect(() => () => {
+    uploadPreparationRef.current++;
+    selectedUploadRef.current = null;
+  }, []);
 
+  const imagePaste = useImagePaste({ onFile: handleNewFile, onError: setErr, maxBytes: MAX_UPLOAD_BYTES });
+
+  async function handleNewFile(f: File) {
+    imagePaste.clear();
+    const preparationId = ++uploadPreparationRef.current;
+    selectedUploadRef.current = null;
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     queuedConversionRef.current = null;
+    submitInProgressRef.current = false;
+    pendingReplaceStampRef.current = null;
+    pendingOutputSettingsRef.current = null;
+    setUpdatingOutputStamp(null);
 
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1457,69 +1442,40 @@ export function PngToSvgRouteImplementation({
     setConversionPhase("preparing");
     setInfo("Preparing image for SVG conversion...");
 
-    let chosen = f;
-
-    if (f.size > MAX_UPLOAD_BYTES) {
-      setInfo("Huge file detected, compressing on your device...");
-      try {
-        chosen = await compressToTarget25MB(f);
-      } catch (e: any) {
-        setInfo(null);
-        setErr(
-          e?.message || "This image is too large. Please resize and try again.",
-        );
-        setFile(null);
-        setPreviewUrl(null);
-        setAutoMode("off");
-        setOriginalFileSize(null);
-        setConversionPhase("idle");
-        suppressLiveRef.current = false;
-        return;
-      }
-    } else if (f.size > LIVE_MED_MAX) {
-      setInfo("Large file detected, compressing on-device for preview...");
-      try {
-        const shrunk = await compressToTarget25MB(f);
-        chosen = shrunk;
-        setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
-      } catch (e: any) {
-        setErr(
-          e?.message ||
-            "Could not compress below 25 MB. Live preview will be disabled.",
-        );
-        setInfo(null);
-        chosen = f;
-      }
-    }
-
-    if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(
-        `File too large. Max ${Math.round(
-          MAX_UPLOAD_BYTES / (1024 * 1024),
-        )} MB.`,
-      );
+    let prepared: Awaited<ReturnType<typeof prepareRasterUpload>>;
+    try {
+      prepared = await prepareRasterUpload(f, () => {
+        if (preparationId === uploadPreparationRef.current) setInfo("Your image is larger than the supported processing size. Preparing a smaller version on your device; some fine detail may be reduced.");
+      });
+    } catch (error) {
+      if (preparationId !== uploadPreparationRef.current) return;
+      setErr(error instanceof Error ? error.message : "Could not prepare this image. Export a PNG or JPEG and try again.");
       setInfo(null);
-      setFile(null);
-      setPreviewUrl(null);
       setAutoMode("off");
       setOriginalFileSize(null);
       setConversionPhase("idle");
       suppressLiveRef.current = false;
       return;
     }
+    if (preparationId !== uploadPreparationRef.current) return;
+    const chosen = prepared.file;
+    selectedUploadRef.current = chosen;
 
     setFile(chosen);
+    setDims({ w: prepared.header.width, h: prepared.header.height, mp: prepared.header.width * prepared.header.height / 1_000_000 });
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
 
     try {
-      await measureAndSet(chosen);
       await submitConvertForFile(chosen, settings, activePreset, {
         allowWhileBusy: true,
       });
+      if (prepared.normalized && preparationId === uploadPreparationRef.current) {
+        setInfo(`Prepared ${prepared.header.width}×${prepared.header.height} image on your device. Some fine detail may be reduced.`);
+      }
     } finally {
-      suppressLiveRef.current = false;
+      if (preparationId === uploadPreparationRef.current) suppressLiveRef.current = false;
     }
   }
 
@@ -1550,6 +1506,12 @@ export function PngToSvgRouteImplementation({
     presetIdForSubmit: string = activePreset,
     options: { allowWhileBusy?: boolean } = {},
   ) {
+    const preparationId = uploadPreparationRef.current;
+    const ownsUpload = () =>
+      preparationId === uploadPreparationRef.current &&
+      targetFile === selectedUploadRef.current;
+    if (!ownsUpload()) return;
+
     if ((submitInProgressRef.current || busy) && !options.allowWhileBusy) {
       setInfo("Conversion already running. The SVG will appear below automatically.");
       return;
@@ -1562,12 +1524,14 @@ export function PngToSvgRouteImplementation({
     try {
       await validateBeforeSubmit(targetFile);
     } catch (e: any) {
+      if (!ownsUpload()) return;
       submitInProgressRef.current = false;
       setConversionPhase("idle");
       setInfo(null);
       setErr(e?.message || "Image is too large.");
       return;
     }
+    if (!ownsUpload()) return;
 
     const effective = getEffectiveSettings(inputSettings);
 
@@ -1613,6 +1577,7 @@ export function PngToSvgRouteImplementation({
       replaceStamp,
       startedAt,
       fileName: targetFile.name,
+      sourceFile: targetFile,
       sourceSnapshot,
     });
     if (!replaceStamp) {
@@ -1630,6 +1595,7 @@ export function PngToSvgRouteImplementation({
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: targetFile.name,
+        sourceFile: targetFile,
         sourceMimeType: sourceSnapshot.sourceMimeType,
         sourceFileSize: sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
@@ -1784,12 +1750,17 @@ export function PngToSvgRouteImplementation({
     );
   }
 
-  function submitOutputUpdate(stamp: number) {
+  async function submitOutputUpdate(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp) as
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
     if (!item) return;
-    if (!outputMatchesActiveSource(item, file) || !file) {
+    const preparationId = uploadPreparationRef.current;
+    const isCurrent = () => preparationId === uploadPreparationRef.current &&
+      file === selectedUploadRef.current && historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       setHistory((prev) =>
         prev.map((candidate) =>
           candidate.stamp === stamp
@@ -1832,12 +1803,17 @@ export function PngToSvgRouteImplementation({
     );
   }
 
-  function retryOutputJob(stamp: number) {
+  async function retryOutputJob(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp) as
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
     if (!item) return;
-    if (!outputMatchesActiveSource(item, file) || !file) {
+    const preparationId = uploadPreparationRef.current;
+    const isCurrent = () => preparationId === uploadPreparationRef.current &&
+      file === selectedUploadRef.current && historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       setHistory((prev) =>
         prev.map((candidate) =>
           candidate.stamp === stamp
@@ -1976,7 +1952,7 @@ export function PngToSvgRouteImplementation({
 
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+            <div data-converter-input="true" onPaste={imagePaste.onPaste} tabIndex={-1} role="group" aria-label="Image input" className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="text-[32px] flex mb-3 text-sky-800 text-xl md:text-3xl w-full justify-center font-extrabold leading-none m-0">
                 <CurrentRouteTitle fallback="PNG to SVG Converter" />
               </h1>
@@ -2022,10 +1998,14 @@ export function PngToSvgRouteImplementation({
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
+                    <ReplaceFileButton onPick={onPick} accept={ACCEPTED_UPLOAD_ACCEPT} />
                     <button
                       type="button"
                       aria-label="Remove selected image"
                       onClick={() => {
+                        imagePaste.clear();
+                        uploadPreparationRef.current++;
+                        selectedUploadRef.current = null;
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
@@ -2037,8 +2017,11 @@ export function PngToSvgRouteImplementation({
                         setConversionPhase("idle");
                         submitInProgressRef.current = false;
                         queuedConversionRef.current = null;
+                        pendingReplaceStampRef.current = null;
+                        pendingOutputSettingsRef.current = null;
+                        setUpdatingOutputStamp(null);
                       }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-white text-slate-600 cursor-pointer hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
                       x
                     </button>
@@ -2054,6 +2037,8 @@ export function PngToSvgRouteImplementation({
                   )}
                 </>
               )}
+
+              <ImagePastePrompt paste={imagePaste} />
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
@@ -2084,6 +2069,7 @@ export function PngToSvgRouteImplementation({
                     className="m-0 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-5 text-red-700"
                   >
                     {err}
+                    {" "}<a href="/how-it-works/troubleshooting#mobile-image-recovery" className="underline underline-offset-2">Image upload and mobile recovery steps</a>
                   </p>
                 )}
                 {!err && info && (
@@ -2100,7 +2086,7 @@ export function PngToSvgRouteImplementation({
             </div>
 
             {previewUrl && !presetMenuExpanded && (
-              <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
+              <div data-converter-original="true" className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
                   Original image
                 </p>
@@ -2185,23 +2171,8 @@ export function PngToSvgRouteImplementation({
 
 /* ===== Client-side helpers ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
-  if ("createImageBitmap" in window) {
-    const bmp = await createImageBitmap(file);
-    try {
-      return { w: bmp.width, h: bmp.height };
-    } finally {
-      bmp.close?.();
-    }
-  }
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return { w: img.naturalWidth, h: img.naturalHeight };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const { width, height } = await readRasterHeader(file);
+  return { w: width, h: height };
 }
 
 async function validateBeforeSubmit(file: File) {
@@ -2220,94 +2191,6 @@ async function validateBeforeSubmit(file: File) {
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
-  }
-}
-
-/** Compress to ≤25MB (best effort). Converts PNG→JPEG if necessary for size. */
-async function compressToTarget25MB(file: File): Promise<File> {
-  const TARGET = LIVE_MED_MAX;
-  if (file.size <= TARGET) return file;
-  if (!file.type.startsWith("image/"))
-    throw new Error("Unsupported file type for compression.");
-
-  const img =
-    "createImageBitmap" in window
-      ? await createImageBitmap(file)
-      : await loadImageElement(file);
-
-  let w = img.width;
-  let h = img.height;
-
-  const encode = async (quality: number): Promise<Blob> => {
-    const canvas =
-      "OffscreenCanvas" in window
-        ? new OffscreenCanvas(w, h)
-        : (document.createElement("canvas") as HTMLCanvasElement);
-
-    if (!(canvas as any).getContext) throw new Error("Canvas unsupported.");
-    (canvas as any).width = w;
-    (canvas as any).height = h;
-    const ctx = (canvas as any).getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D unsupported.");
-    ctx.drawImage(img as any, 0, 0, w, h);
-
-    const mime = "image/jpeg";
-    const blob: Blob = await new Promise((res, rej) => {
-      if ("convertToBlob" in (canvas as any)) {
-        (canvas as any)
-          .convertToBlob({ type: mime, quality })
-          .then(res)
-          .catch(rej);
-      } else {
-        (canvas as HTMLCanvasElement).toBlob(
-          (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
-          mime,
-          quality,
-        );
-      }
-    });
-    return blob;
-  };
-
-  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
-  for (const q of qualities) {
-    const b = await encode(q);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-  }
-
-  let scale = 0.9;
-  while (w > 64 && h > 64) {
-    w = Math.max(64, Math.floor(w * scale));
-    h = Math.max(64, Math.floor(h * scale));
-    const b = await encode(0.75);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-    scale = Math.max(0.5, scale - 0.07);
-  }
-
-  throw new Error(
-    "This image cannot be reduced below 25 MB without excessive degradation.",
-  );
-}
-
-function renameToJpeg(name: string) {
-  const dot = name.lastIndexOf(".");
-  const base = dot > 0 ? name.slice(0, dot) : name;
-  return `${base}.jpg`;
-}
-
-async function loadImageElement(file: File): Promise<HTMLImageElement> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return img;
-  } finally {
-    URL.revokeObjectURL(url);
   }
 }
 

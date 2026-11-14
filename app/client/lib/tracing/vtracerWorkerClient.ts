@@ -1,3 +1,4 @@
+import { readRasterHeader } from "../converter/prepareRasterUpload";
 import {
   getTraceEngineDecision,
   type TraceInputProfile,
@@ -122,6 +123,9 @@ export async function tryTraceRasterInClient(input: {
     input.sourceWidth && input.sourceHeight
       ? { width: input.sourceWidth, height: input.sourceHeight }
       : await readBrowserImageSize(input.file);
+  if (!probedSize && ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(input.file.type)) {
+    return { ok: false, reason: "Could not safely read image dimensions in this browser. Trying the supported server path." };
+  }
   if (
     settings.traceMode === "layered" &&
     layeredQualityTier === "default" &&
@@ -165,6 +169,9 @@ export async function tryTraceRasterInClient(input: {
     }
     input.onProgress?.(0.05, "Tracing in your browser.");
     const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
     worker = new Worker(
       new URL("../../workers/vtracer.worker.ts", import.meta.url),
       { type: "module" },
@@ -324,6 +331,9 @@ async function tryTraceCenterlineInClient(input: {
       return { ok: false, reason: "Conversion was canceled." };
     }
     const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
     worker = new Worker(
       new URL("../../workers/centerline.worker.ts", import.meta.url),
       { type: "module" },
@@ -448,6 +458,13 @@ function releaseClientTraceSlot() {
 }
 
 async function readBrowserImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  if (["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
+    try {
+      return await readRasterHeader(file);
+    } catch {
+      return null;
+    }
+  }
   if (typeof createImageBitmap !== "function") return null;
   try {
     const bitmap = await withTimeout(createImageBitmap(file), 4_000);

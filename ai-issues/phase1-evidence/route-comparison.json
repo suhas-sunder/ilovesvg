@@ -1,0 +1,731 @@
+{
+  "before": "tmp/phase1-evidence/before/report.json",
+  "after": "tmp/phase1-evidence/build5-matrix/report.json",
+  "count": {
+    "before": 28,
+    "after": 28
+  },
+  "issues": [],
+  "chromiumAssetSizes": [
+    {
+      "route": "/",
+      "widths": [
+        320,
+        1920
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            29,
+            29,
+            0
+          ],
+          "encodedBytes": [
+            466250,
+            468119,
+            1869
+          ],
+          "decodedBytes": [
+            1640426,
+            1646319,
+            5893
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/png-to-svg-converter",
+      "widths": [
+        375,
+        1440
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            30,
+            30,
+            0
+          ],
+          "encodedBytes": [
+            455778,
+            457507,
+            1729
+          ],
+          "decodedBytes": [
+            1599944,
+            1605415,
+            5471
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/logo-to-svg-converter",
+      "widths": [
+        390,
+        1024
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            29,
+            28,
+            -1
+          ],
+          "encodedBytes": [
+            455043,
+            455327,
+            284
+          ],
+          "decodedBytes": [
+            1596116,
+            1598637,
+            2521
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/image-to-layered-svg-converter",
+      "widths": [
+        430,
+        768
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            32,
+            31,
+            -1
+          ],
+          "encodedBytes": [
+            463138,
+            463427,
+            289
+          ],
+          "decodedBytes": [
+            1624325,
+            1626846,
+            2521
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/png-to-svg-for-cricut",
+      "widths": [
+        320,
+        1440
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            30,
+            29,
+            -1
+          ],
+          "encodedBytes": [
+            456667,
+            456953,
+            286
+          ],
+          "decodedBytes": [
+            1605370,
+            1607891,
+            2521
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "widths": [
+        375,
+        1024
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            21,
+            20,
+            -1
+          ],
+          "encodedBytes": [
+            266381,
+            266652,
+            271
+          ],
+          "decodedBytes": [
+            823526,
+            826047,
+            2521
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/svg-cleaner",
+      "widths": [
+        390,
+        1920
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            18,
+            17,
+            -1
+          ],
+          "encodedBytes": [
+            249662,
+            249335,
+            -327
+          ],
+          "decodedBytes": [
+            765047,
+            766176,
+            1129
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/svg-dimensions-inspector",
+      "widths": [
+        430,
+        768
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            17,
+            16,
+            -1
+          ],
+          "encodedBytes": [
+            247225,
+            246884,
+            -341
+          ],
+          "decodedBytes": [
+            755310,
+            756405,
+            1095
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/svg-to-base64",
+      "widths": [
+        320,
+        1440
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            17,
+            16,
+            -1
+          ],
+          "encodedBytes": [
+            246065,
+            245727,
+            -338
+          ],
+          "decodedBytes": [
+            756527,
+            757622,
+            1095
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/how-it-works",
+      "widths": [
+        375,
+        1024
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            14,
+            13,
+            -1
+          ],
+          "encodedBytes": [
+            220565,
+            220088,
+            -477
+          ],
+          "decodedBytes": [
+            677519,
+            678027,
+            508
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/privacy-policy",
+      "widths": [
+        390,
+        1920
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            13,
+            12,
+            -1
+          ],
+          "encodedBytes": [
+            234494,
+            234022,
+            -472
+          ],
+          "decodedBytes": [
+            710656,
+            711164,
+            508
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "route": "/sitemap",
+      "widths": [
+        430,
+        768
+      ],
+      "sizes": {
+        "js": {
+          "count": [
+            11,
+            10,
+            -1
+          ],
+          "encodedBytes": [
+            206590,
+            206117,
+            -473
+          ],
+          "decodedBytes": [
+            601790,
+            602298,
+            508
+          ]
+        },
+        "css": {
+          "count": [
+            1,
+            1,
+            0
+          ],
+          "encodedBytes": [
+            17031,
+            17230,
+            199
+          ],
+          "decodedBytes": [
+            102822,
+            103600,
+            778
+          ]
+        },
+        "wasm": {
+          "count": [
+            0,
+            0,
+            0
+          ],
+          "encodedBytes": [
+            0,
+            0,
+            0
+          ],
+          "decodedBytes": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}

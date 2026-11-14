@@ -2,8 +2,7 @@ import { Link } from "react-router";
 
 export default function SiteFooter() {
   const linkClass =
-    "cursor-pointer text-sky-200/85 hover:text-white hover:underline underline-offset-4 transition-colors";
-  const sepClass = "text-sky-200/25 select-none";
+    "cursor-pointer inline-flex min-h-8 items-center rounded text-sky-200/90 hover:text-white hover:underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300";
 
   return (
     <footer className="bg-sky-950 border-t border-sky-900/60 text-white">
@@ -18,15 +17,11 @@ export default function SiteFooter() {
           </div>
 
           <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
               <li>
                 <Link to="/" className={linkClass}>
                   Home
                 </Link>
-              </li>
-
-              <li className={sepClass} aria-hidden="true">
-                |
               </li>
 
               <li>
@@ -35,28 +30,16 @@ export default function SiteFooter() {
                 </Link>
               </li>
 
-              <li className={sepClass} aria-hidden="true">
-                |
-              </li>
-
               <li>
                 <Link to="/pro-waitlist" className={linkClass}>
                   Pro Waitlist
                 </Link>
               </li>
 
-              <li className={sepClass} aria-hidden="true">
-                |
-              </li>
-
               <li>
                 <Link to="/sitemap" className={linkClass}>
                   Sitemap
                 </Link>
-              </li>
-
-              <li className={sepClass} aria-hidden="true">
-                |
               </li>
 
               <li>
@@ -78,7 +61,10 @@ export default function SiteFooter() {
           </nav>
         </div>
 
-        <p className="mt-5 max-w-[920px] text-xs leading-5 text-sky-200/55 text-center flex w-full mx-auto">
+        <p className="mt-5 text-center text-sm leading-6 text-sky-100">
+          Built and maintained by <Link to="/author/suhas-sunder" className={linkClass}>Suhas Sunder</Link>, a software engineer.
+        </p>
+        <p className="mt-3 max-w-[920px] text-xs leading-5 text-sky-200/75 text-center mx-auto">
           Privacy: Uploaded files are used for conversion, processed in memory
           during the request, and not intentionally stored after processing.
         </p>

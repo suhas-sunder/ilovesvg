@@ -73,6 +73,8 @@ const SVG_EXPORT_GROUPS: AdvancedSettingGroup[] = [
 const SVG_UTILITY_GROUPS: AdvancedSettingGroup[] = ["svg-utility"];
 
 const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
+  "author.suhas-sunder": "static",
+  "author/suhas-sunder": "static",
   home: "raster-to-svg",
   "png-to-svg-converter": "raster-to-svg",
   "jpg-to-svg-converter": "raster-to-svg",
@@ -132,6 +134,7 @@ const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
   "svg-dimensions-inspector": "svg-utility",
   "svg-file-size-inspector": "svg-utility",
   "svg-embed-code-generator": "svg-utility",
+  "svg-sprite-generator": "svg-utility",
   "svg-accessibility-and-contrast-checker": "svg-utility",
   // SEO-safe route expansion
   "gif-to-svg-converter": "raster-to-svg",

@@ -1,3 +1,5 @@
+import { readRasterHeader } from "./prepareRasterUpload";
+
 export type SourceFingerprint = {
   sha256: string;
   size: number;
@@ -80,6 +82,14 @@ function normalizeDimensions(
 async function readImageDimensionsIfAvailable(
   file: File,
 ): Promise<{ width: number; height: number } | null> {
+  if (["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
+    try {
+      return await readRasterHeader(file);
+    } catch {
+      // A failed cheap probe must not trigger an expensive full decode.
+      return null;
+    }
+  }
   if (typeof createImageBitmap !== "function") return null;
   try {
     const bitmap = await createImageBitmap(file);

@@ -1039,6 +1039,7 @@ export function CleanerRouteImplementation({
                 </div>
                 <div className="p-3">
                   <textarea
+                    aria-label="Cleaned SVG source"
                     value={outSvg}
                     readOnly
                     className="w-full h-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"

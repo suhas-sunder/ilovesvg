@@ -182,7 +182,7 @@ function SidebarAdRail({
 }) {
   return (
     <aside
-      aria-label="Advertisements"
+      aria-label={`${side === "left" ? "Left" : "Right"} advertisements`}
       className="pointer-events-auto fixed z-20 hidden min-[2400px]:block"
       style={{
         top: SIDE_AD_TOP_PX,

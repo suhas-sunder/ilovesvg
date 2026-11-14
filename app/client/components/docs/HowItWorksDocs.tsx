@@ -81,9 +81,11 @@ const DOCS_COMPACT_AD_SLOT = "8102088582";
 export function DocsPageShell({
   children,
   currentPath,
+  showSocialLinks = true,
 }: {
   children: React.ReactNode;
   currentPath: string;
+  showSocialLinks?: boolean;
 }) {
   return (
     <>
@@ -92,7 +94,7 @@ export function DocsPageShell({
         <DocsCompactAd currentPath={currentPath} />
         <DocsRelatedReads currentPath={currentPath} />
       </main>
-      <SocialLinks />
+      {showSocialLinks ? <SocialLinks /> : null}
       <SiteFooter />
     </>
   );
@@ -171,7 +173,7 @@ export function DocsHero({
               Hub
             </Link>
           </div>
-          <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Preset speed color scale">
+          <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Preset speed color scale">
             {HERO_SPEEDS.map((speed) => {
               const badge = getPresetIntensityBadge({ backendIntensity: speed });
               return (

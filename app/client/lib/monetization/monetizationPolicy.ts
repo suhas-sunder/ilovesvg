@@ -17,6 +17,7 @@ export type RouteMonetizationPolicy = {
 };
 
 export const LEGAL_TRUST_MONETIZATION_EXCLUDED_ROUTES = [
+  "/author/suhas-sunder",
   "/privacy-policy",
   "/terms-of-service",
   "/cookies",
