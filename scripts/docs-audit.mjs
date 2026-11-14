@@ -185,7 +185,12 @@ async function isPublicAsset(link) {
   const assetPath = path.resolve(publicDir, `.${link}`);
   if (!assetPath.startsWith(`${publicDir}${path.sep}`)) return false;
   try {
-    return (await fs.stat(assetPath)).isFile();
+    const [resolvedPublicDir, resolvedAsset] = await Promise.all([
+      fs.realpath(publicDir),
+      fs.realpath(assetPath),
+    ]);
+    if (!resolvedAsset.startsWith(`${resolvedPublicDir}${path.sep}`)) return false;
+    return (await fs.stat(resolvedAsset)).isFile();
   } catch (error) {
     if (error && (error.code === "ENOENT" || error.code === "ENOTDIR")) return false;
     throw error;
