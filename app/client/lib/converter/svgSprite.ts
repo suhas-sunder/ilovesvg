@@ -18,6 +18,8 @@ const COORDINATE_LIMIT = 100000;
 const MIN_VIEWBOX_SIDE = 0.001;
 const NUMBER_SOURCE = "[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?";
 const NUMBER = new RegExp(`^${NUMBER_SOURCE}$`);
+// Both Chromium and WebKit truncate a path at a decimal point with no following digit.
+const PATH_NUMBER_SOURCE = "[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)(?:[eE][+-]?[0-9]+)?";
 const ID_SOURCE = "[A-Za-z0-9_.:-]{1,80}";
 const ID = new RegExp(`^${ID_SOURCE}$`);
 const HASH = new RegExp(`^#(${ID_SOURCE})$`);
@@ -100,9 +102,11 @@ function numeric(value: string, suffixes: readonly string[] = [], min = -Infinit
 /** SVG lists and paths allow adjacent numbers when the second number starts with a sign or decimal point. */
 class NumericScanner {
   position = 0;
-  readonly number = new RegExp(NUMBER_SOURCE, "y");
+  readonly number: RegExp;
 
-  constructor(readonly text: string) {}
+  constructor(readonly text: string, numberSource = NUMBER_SOURCE) {
+    this.number = new RegExp(numberSource, "y");
+  }
 
   spaces() {
     while (/[ \t\r\n]/.test(this.text[this.position] || "")) this.position++;
@@ -165,7 +169,7 @@ function spendGeometry(budget: Budget, count: number) {
 }
 
 function validatePath(value: string, budget: Budget) {
-  const scanner = new NumericScanner(value);
+  const scanner = new NumericScanner(value, PATH_NUMBER_SOURCE);
   let command = "";
   let count = 0;
   scanner.spaces();
