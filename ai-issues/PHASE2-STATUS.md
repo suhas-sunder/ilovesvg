@@ -27,7 +27,7 @@ The exact candidate SHAs and file allowlists are in [release-queue.json](seo/rel
 
 `main → #11 → #12 → #14 → A/#15 → B/#16 → #17 → C/#18 → D/#19 → E/#20 → F/#21`.
 
-[#14](https://github.com/suhas-sunder/ilovesvg/pull/14) adds the nested author URL to the HTTP test map. [#17](https://github.com/suhas-sunder/ilovesvg/pull/17) allows documentation links to real files inside `public`, while still rejecting missing targets. These are small test prerequisites, separated from the weekly content allowlist. [#13](https://github.com/suhas-sunder/ilovesvg/pull/13) is a main-target **verification-only** PR; never merge it to publish the stack. The administrative handoff PR is also separate from content publication.
+[#14](https://github.com/suhas-sunder/ilovesvg/pull/14) adds the nested author URL to the HTTP test map. [#17](https://github.com/suhas-sunder/ilovesvg/pull/17) allows documentation links to real files inside `public`, while still rejecting missing targets. These are small test prerequisites, separated from the weekly content allowlist. [#13](https://github.com/suhas-sunder/ilovesvg/pull/13) is a main-target **verification-only** PR; never merge it to publish the stack. [Administrative handoff PR #22](https://github.com/suhas-sunder/ilovesvg/pull/22) is also separate from content publication.
 
 ## 5. Existing-page improvements
 
