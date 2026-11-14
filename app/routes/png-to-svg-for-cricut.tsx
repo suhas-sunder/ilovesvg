@@ -2175,12 +2175,11 @@ function SeoSections() {
                 packaging, silhouettes, and simple sticker outlines.
               </p>
               <p className="text-slate-600">
-                Use the Cricut-focused presets first, then open Advanced
-                settings when you need tighter curves, fewer speckles, stronger
-                outlines, or a dark preview for white vinyl designs. This tool
-                does not preserve full original colors or create layered vinyl
-                SVGs; use dedicated layered or Print Then Cut tools for those
-                workflows.
+                Use the Cricut-focused presets first, then open Settings / Edit
+                on the result when you need tighter curves, fewer speckles, stronger
+                outlines, or a temporary dark background for white vinyl
+                designs. For separate vinyl colors or printable artwork, use
+                the dedicated layered or Print Then Cut workflows.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2321,16 +2320,15 @@ function SeoSections() {
                 },
                 {
                   title: "Tune the cut file",
-                  body: "Use threshold to control what becomes solid, turd size to remove speckles, and curve tolerance to balance detail against simpler paths.",
+                  body: "Use Threshold to control what becomes solid, Remove tiny specks to reduce stray shapes, and Curve smoothing to simplify rough edges.",
                 },
                 {
-                  title:
-                    "Keep transparency unless you need a preview background",
-                  body: "Transparent SVG output is usually the safest starting point for Cricut Design Space. Use dark preview only when checking white vinyl artwork.",
+                  title: "Keep the export background transparent",
+                  body: "Turn on Transparent background before downloading a cut file. If you used White Vinyl – Dark Preview, open Settings / Edit, turn off Invert line art, turn on Transparent background, and select Update preview.",
                 },
                 {
                   title: "Download the SVG and inspect it in Design Space",
-                  body: "The converter creates editable SVG paths. Always preview the final layers and cut behavior before using expensive vinyl, cardstock, or printable sticker paper.",
+                  body: "Select Download Cricut SVG, then review the imported paths and final dimensions in Design Space before cutting your material.",
                 },
               ].map((s, i) => (
                 <li
@@ -2398,7 +2396,7 @@ function SeoSections() {
                 },
                 {
                   title: "White Vinyl - Dark Preview",
-                  body: "Adds a dark background preview and white paths so white vinyl designs are visible before download.",
+                  body: "Adds a dark background rectangle and white paths so the design is visible. Invert line art forces that rectangle into the export. Turn off inversion and turn on Transparent background before updating the preview for a cut file.",
                 },
               ].map((c) => (
                 <div
@@ -2430,15 +2428,15 @@ function SeoSections() {
                   body: "Higher values include lighter parts of the image. Lower values keep only darker ink. This is the main control for how much of the PNG becomes a cut shape.",
                 },
                 {
-                  title: "Turd size",
+                  title: "Remove tiny specks",
                   body: "Removes small islands, speckles, and dust. Increase it for scanned drawings or noisy JPEGs. Decrease it if tiny details are being removed.",
                 },
                 {
-                  title: "Curve tolerance",
+                  title: "Curve smoothing",
                   body: "Higher values smooth and simplify paths. Lower values preserve more detail but can create heavier SVGs with more nodes.",
                 },
                 {
-                  title: "Turn policy",
+                  title: "Corner handling",
                   body: "Controls how ambiguous corners are resolved. Majority is a stable default. Black can help close gaps in bolder decal artwork.",
                 },
                 {
@@ -2447,7 +2445,7 @@ function SeoSections() {
                 },
                 {
                   title: "Line color and background",
-                  body: "Keep black paths on a transparent background for most imports. Use white-on-dark preview only to check white vinyl visibility.",
+                  body: "Use a visible line color for review and turn on Transparent background before exporting. Any area traced from the source is still part of the artwork.",
                 },
               ].map((c) => (
                 <div
@@ -2465,47 +2463,131 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-sky-950 text-lg font-bold">
-              Practical Cricut import tips
+              Check the paths before you cut
             </h3>
-            <div className="mt-4 grid lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold text-sky-950">
-                  Better input gives better SVG output
+            <p className="mt-2 max-w-[82ch] text-sm leading-relaxed text-slate-600">
+              Start with a transparent or high-contrast source. Inspect the
+              downloaded SVG on the{" "}
+              <a href="/svg-preview-viewer" className="font-medium text-sky-800 underline">
+                SVG Preview Viewer
+              </a>
+              {" "}to check its canvas dimensions and source, then check the
+              imported artwork at its final size in Design Space.
+            </p>
+            <dl className="mt-4 grid gap-4 md:grid-cols-2">
+              {[
+                {
+                  issue: "A hole looks filled",
+                  fix: "Look through the middle of letters like A or O in the trace preview. If pale pixels have filled the opening, lower Threshold a little and compare the result. In an existing SVG, an opaque white shape can look like a hole on a white canvas. Check against a contrasting background and confirm the inner contour after import.",
+                },
+                {
+                  issue: "Tiny islands or gaps appear",
+                  fix: "Raise Remove tiny specks gradually to clear dust or compression marks. Check dots above letters and small interior holes after each change. For a stencil, add bridges to hold islands that would otherwise fall out.",
+                },
+                {
+                  issue: "An outline is rough or too thin",
+                  fix: "Increase Curve smoothing a little if a simple edge has lots of small bends. Filled traces follow the boundaries of the ink, so a thin mark can leave two closely spaced edges for the blade to follow. Thicken that feature in the source if it is too narrow at your finished size.",
+                },
+                {
+                  issue: "There is a rectangle around the design",
+                  fix: "Turn off Invert line art, turn on Transparent background, and select Update preview. If the rectangle remains, the trace may have captured the original backdrop. Remove that backdrop in the source and trace again.",
+                },
+              ].map(({ issue, fix }) => (
+                <div key={issue} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <dt className="font-semibold text-sky-950">{issue}</dt>
+                  <dd className="mt-2 text-sm leading-relaxed text-slate-600">{fix}</dd>
                 </div>
-                <ul className="mt-3 grid gap-2 text-sm text-slate-600 list-disc pl-5">
-                  <li>
-                    Use high-resolution PNG or JPG files with clear contrast.
-                  </li>
-                  <li>
-                    Crop extra blank space before uploading when possible.
-                  </li>
-                  <li>
-                    Avoid tiny distressed textures if the design needs to weed
-                    cleanly.
-                  </li>
-                  <li>
-                    Use bolder presets for decals and smoother presets for
-                    shirts.
-                  </li>
-                  <li>
-                    Inspect the imported SVG before cutting premium vinyl or
-                    sticker paper.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-sky-50 p-5">
-                <div className="text-sm font-semibold text-sky-950">
-                  Not official
+              ))}
+            </dl>
+            <figure className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="grid max-w-md grid-cols-2 gap-3">
+                <div>
+                  <img
+                    src="/examples/output-inspection/cut-mark-source.png"
+                    alt="Original PNG with a rectangular hole, a thin bridge, and a detached disk"
+                    width={320}
+                    height={240}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-auto w-full rounded-lg border border-slate-200 bg-slate-50"
+                  />
+                  <a href="/examples/output-inspection/cut-mark-source.png" download className="mt-2 inline-block text-sm font-medium text-sky-800 underline">
+                    Download source PNG
+                  </a>
                 </div>
-                <p className="mt-2 text-sm text-slate-700">
-                  iLoveSVG is not affiliated with Cricut. This page creates SVG
-                  files that can be tested in Cricut Design Space, but final
-                  cutting behavior depends on your artwork, material, blade,
-                  mat, and Design Space setup.
-                </p>
+                <div>
+                  <img
+                    src="/examples/output-inspection/cut-mark-traced.svg"
+                    alt="Traced SVG with the hole, bridge, and detached disk still visible"
+                    width={320}
+                    height={240}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-auto w-full rounded-lg border border-slate-200 bg-slate-50"
+                  />
+                  <a href="/examples/output-inspection/cut-mark-traced.svg" download className="mt-2 inline-block text-sm font-medium text-sky-800 underline">
+                    Download traced SVG
+                  </a>
+                </div>
               </div>
+              <figcaption className="mt-3 max-w-[82ch] text-sm leading-relaxed text-slate-600">
+                The 320 × 240 PNG was traced with Lineart – Accurate in the{" "}
+                <a href="/png-to-svg-converter" className="font-medium text-sky-800 underline">
+                  PNG to SVG converter
+                </a>
+                . Its SVG has one path element with three subpaths. Check
+                the open hole, the detached disk, and the narrow connection
+                before choosing a finished size.
+              </figcaption>
+            </figure>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-sky-50 p-5">
+              <h4 className="font-semibold text-sky-950">Review the imported cut</h4>
+              <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
+                <li>
+                  Upload the SVG and add it to the Canvas. For a cut-only
+                  project, check that the Operation is Basic Cut. Inspect the
+                  Layers panel for unwanted shapes or copies stacked in the
+                  same place. Overlapping copies can be hard to spot in a
+                  filled preview.{" "}
+                  <a href="https://help.cricut.com/hc/en-us/articles/360009556313-How-to-upload-images-into-Design-Space" className="font-medium text-sky-800 underline">
+                    Cricut upload guide
+                  </a>
+                </li>
+                <li>
+                  Set the finished width or height on the Canvas with the
+                  proportions locked. Select Make or Make It and review the mat preview for
+                  unexpected outlines, overlap, or pieces moved away from the
+                  design.{" "}
+                  <a href="https://help.cricut.com/hc/en-us/articles/26762475430167-Prepare-screen-Design-Space-Guide" className="font-medium text-sky-800 underline">
+                    Cricut Prepare screen guide
+                  </a>
+                </li>
+                <li>
+                  Cut a small sample of the artwork at final scale on scrap of
+                  the intended material. Check that tight corners, small holes,
+                  and thin features survive cutting and weeding.
+                </li>
+              </ol>
             </div>
+            <p className="mt-4 max-w-[82ch] text-sm leading-relaxed text-slate-600">
+              For separate vinyl colors, use the{" "}
+              <a href="/png-to-layered-svg-for-cricut" className="font-medium text-sky-800 underline">
+                layered PNG converter
+              </a>
+              {" "}and keep only the layers you plan to cut. For printed
+              color, start with a PNG.{" "}
+              <a href="https://help.cricut.com/hc/en-us/articles/360009387274-How-to-Print-Then-Cut-in-Design-Space" className="font-medium text-sky-800 underline">
+                Cricut Print Then Cut guide
+              </a>
+            </p>
+            <p className="mt-2 max-w-[82ch] text-sm leading-relaxed text-slate-600">
+              Design Space can reject SVGs containing embedded raster images,
+              clipping paths, or editable text even when they render in a
+              browser.{" "}
+              <a href="https://help.cricut.com/hc/en-us/articles/360009553213-Image-uploads-unsupported-items" className="font-medium text-sky-800 underline">
+                Cricut SVG upload requirements
+              </a>
+            </p>
           </section>
 
           <section className="mt-12">
@@ -2556,48 +2638,6 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-12">
-            <h3 className="text-sky-950 text-lg font-bold">
-              Troubleshooting Cricut SVG results
-            </h3>
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              {[
-                [
-                  "Too many tiny pieces",
-                  "Raise turd size, use Shirts / HTV - Smooth, or simplify the original image before upload.",
-                ],
-                [
-                  "Edges look jagged",
-                  "Increase curve tolerance slightly or try a cleaner, higher-resolution source image.",
-                ],
-                [
-                  "Details disappeared",
-                  "Lower turd size, lower curve tolerance, or use Logo - Thin Details.",
-                ],
-                [
-                  "Design imports too large",
-                  "Resize inside Design Space or crop empty margins before converting.",
-                ],
-                [
-                  "White design is invisible",
-                  "Use White Vinyl - Dark Preview to check the artwork, then adjust the background if needed.",
-                ],
-                [
-                  "Photo looks messy",
-                  "Try Photo - Simple Outline, then simplify. Busy photos rarely make clean single-color cut files without manual cleanup.",
-                ],
-              ].map(([t, d]) => (
-                <div
-                  key={t}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
-                >
-                  <div className="text-sm font-semibold text-sky-950">{t}</div>
-                  <p className="mt-1 text-sm text-slate-600">{d}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
           <CurrentRouteGuide />
 
           <section
@@ -2628,16 +2668,12 @@ function SeoSections() {
                   a: "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization.",
                 },
                 {
-                  q: "Should I use transparent background?",
-                  a: "Usually yes. Transparent output is the safest default for importing artwork. Use a background color only when you need a preview or a specific visual export.",
+                  q: "Does transparent output remove the source background?",
+                  a: "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading.",
                 },
                 {
                   q: "What file limits apply?",
                   a: "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB.",
-                },
-                {
-                  q: "Why does my SVG have many small shapes?",
-                  a: "Raster-to-vector tracing follows pixel detail. Increase turd size, use a smoother preset, or simplify the original PNG before converting.",
                 },
               ].map((x) => (
                 <article

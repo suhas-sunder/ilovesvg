@@ -1,0 +1,2213 @@
+{
+  "target": "craft",
+  "path": "/png-to-svg-for-cricut",
+  "base": "http://127.0.0.1:5296/",
+  "baseline": "http://127.0.0.1:5280/",
+  "layout": [
+    {
+      "engineName": "chromium",
+      "width": 320,
+      "screenshot": "chromium-320.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 320,
+        "document": 320,
+        "body": 320
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 375,
+      "screenshot": "chromium-375.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 375,
+        "document": 375,
+        "body": 375
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 390,
+      "screenshot": "chromium-390.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 390,
+        "document": 390,
+        "body": 390
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 430,
+      "screenshot": "chromium-430.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 430,
+        "document": 430,
+        "body": 430
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 768,
+      "screenshot": "chromium-768.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 768,
+        "document": 768,
+        "body": 768
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1024,
+      "screenshot": "chromium-1024.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1024,
+        "document": 1024,
+        "body": 1024
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1440,
+      "screenshot": "chromium-1440.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1440,
+        "document": 1440,
+        "body": 1440
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 320,
+      "screenshot": "webkit-320.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 320,
+        "document": 320,
+        "body": 320
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 375,
+      "screenshot": "webkit-375.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 375,
+        "document": 375,
+        "body": 375
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 390,
+      "screenshot": "webkit-390.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 390,
+        "document": 390,
+        "body": 390
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 430,
+      "screenshot": "webkit-430.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 430,
+        "document": 430,
+        "body": 430
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 768,
+      "screenshot": "webkit-768.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 768,
+        "document": 768,
+        "body": 768
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1024,
+      "screenshot": "webkit-1024.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1024,
+        "document": 1024,
+        "body": 1024
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1440,
+      "screenshot": "webkit-1440.jpg",
+      "metadata": {
+        "title": "PNG to SVG for Cricut - Cut File Converter | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/png-to-svg-for-cricut"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "robots",
+            "index,follow"
+          ],
+          [
+            "og:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/png-to-svg-for-cricut"
+          ],
+          [
+            "og:site_name",
+            "iLoveSVG"
+          ],
+          [
+            "twitter:card",
+            "summary_large_image"
+          ],
+          [
+            "twitter:title",
+            "PNG to SVG for Cricut - Cut File Converter | iLoveSVG"
+          ],
+          [
+            "twitter:description",
+            "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance."
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "All SVG tools",
+                "item": "https://www.ilovesvg.com/sitemap"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "PNG to SVG for Cricut",
+                "item": "https://www.ilovesvg.com/png-to-svg-for-cricut"
+              }
+            ]
+          }
+        ],
+        "microdata": [
+          "https://schema.org/Answer",
+          "https://schema.org/FAQPage",
+          "https://schema.org/HowTo",
+          "https://schema.org/HowToStep",
+          "https://schema.org/Question"
+        ],
+        "faqJson": false,
+        "faq": [
+          {
+            "q": "Can I use this SVG in Cricut Design Space?",
+            "a": "The tool creates standard single-color SVG output that you can test in Cricut Design Space. Always inspect sizing and cut behavior before using paid materials."
+          },
+          {
+            "q": "Will this preserve the colors from my PNG?",
+            "a": "No. This page is built for single-color cut SVGs. It traces the image into one editable SVG color, which is better for vinyl, HTV, decals, stencils, labels, and silhouettes."
+          },
+          {
+            "q": "Is this an official Cricut converter?",
+            "a": "No. iLoveSVG is independent and is not affiliated with Cricut. The page is tuned for common single-color Cricut-style cut workflows."
+          },
+          {
+            "q": "What images work best?",
+            "a": "High-contrast logos, silhouettes, lettering, simple drawings, and clean PNG graphics usually work best. Busy photos often need manual cleanup after vectorization."
+          },
+          {
+            "q": "Does transparent output remove the source background?",
+            "a": "Transparent background prevents the converter from adding a background rectangle. A backdrop already traced from your image remains part of the artwork. Clean up the source or adjust the trace and check the result before downloading."
+          },
+          {
+            "q": "What file limits apply?",
+            "a": "PNG and JPEG files are accepted up to 30 MB and roughly 30 megapixels. Preview is fastest under 10 MB and throttled up to 25 MB."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1440,
+        "document": 1440,
+        "body": 1440
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "PNG to SVG for Cricut"
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "engineName": "chromium",
+      "width": 390,
+      "initial": {
+        "bytes": 789,
+        "sha256": "984815658ad51bbac834ea13fa3500b4d908b5d9da5cca82ce094969ce7d7a5d",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "sampleAlpha": [
+          0,
+          255,
+          255,
+          255
+        ]
+      },
+      "dark": {
+        "bytes": 848,
+        "sha256": "d164b34f9d4beb9ec942903aed195e474c12252b8529b1395f648308a0e4661a",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [
+          [
+            "#0b1020",
+            "320",
+            "240"
+          ]
+        ],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          11,
+          16,
+          32,
+          255
+        ],
+        "center": [
+          11,
+          16,
+          32,
+          255
+        ],
+        "sampleAlpha": [
+          255,
+          255,
+          255,
+          255
+        ]
+      },
+      "recovered": {
+        "bytes": 789,
+        "sha256": "38cd2af18ab4ad3e856f583c914c0a89d4ed9c133d644f79cf2ce8cecd61ce9a",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "sampleAlpha": [
+          0,
+          255,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "engineName": "webkit",
+      "width": 390,
+      "initial": {
+        "bytes": 789,
+        "sha256": "984815658ad51bbac834ea13fa3500b4d908b5d9da5cca82ce094969ce7d7a5d",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "sampleAlpha": [
+          0,
+          255,
+          255,
+          255
+        ]
+      },
+      "dark": {
+        "bytes": 848,
+        "sha256": "d164b34f9d4beb9ec942903aed195e474c12252b8529b1395f648308a0e4661a",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [
+          [
+            "#0b1020",
+            "320",
+            "240"
+          ]
+        ],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          11,
+          16,
+          32,
+          255
+        ],
+        "center": [
+          11,
+          16,
+          32,
+          255
+        ],
+        "sampleAlpha": [
+          255,
+          255,
+          255,
+          255
+        ]
+      },
+      "recovered": {
+        "bytes": 789,
+        "sha256": "38cd2af18ab4ad3e856f583c914c0a89d4ed9c133d644f79cf2ce8cecd61ce9a",
+        "viewBox": "0 0 320 240",
+        "paths": 1,
+        "subpaths": 3,
+        "rects": [],
+        "circles": [],
+        "images": 0,
+        "width": 320,
+        "height": 240,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "sampleAlpha": [
+          0,
+          255,
+          255,
+          255
+        ]
+      }
+    }
+  ],
+  "failures": []
+}
