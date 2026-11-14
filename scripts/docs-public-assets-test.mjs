@@ -31,8 +31,9 @@ try {
     await cp(path.join(root, file), path.join(fixture, file));
   }
 
-  await mkdir(path.join(fixture, "public", "examples"), { recursive: true });
-  await writeFile(path.join(fixture, "public", "examples", "manifest.json"), "{}\n");
+  await cp(path.join(root, "public"), path.join(fixture, "public"), { recursive: true });
+  await mkdir(path.join(fixture, "public", "test-downloads"));
+  await writeFile(path.join(fixture, "public", "test-downloads", "manifest.json"), "{}\n");
   await mkdir(outside);
   await writeFile(path.join(outside, "private.json"), "{}\n");
   await symlink(outside, path.join(fixture, "public", "linked"), process.platform === "win32" ? "junction" : "dir");
@@ -40,9 +41,9 @@ try {
   const docsSource = await readFile(path.join(fixture, docsFile), "utf8");
   for (const [url, expectedStatus] of [
     ["/how-it-works/troubleshooting", 0],
-    ["/examples/manifest.json#details", 0],
-    ["/examples/missing.json", 1],
-    ["/examples/", 1],
+    ["/test-downloads/manifest.json#details", 0],
+    ["/test-downloads/missing.json", 1],
+    ["/test-downloads/", 1],
     ["/../app/routes.ts", 1],
     ["/linked/private.json", 1],
   ]) {
