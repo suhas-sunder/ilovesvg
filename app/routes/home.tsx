@@ -92,6 +92,7 @@ import {
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
+  matchesOutputSourceFile,
   type OutputSourceSnapshot,
 } from "~/client/lib/converter/sourceSnapshots";
 import { tryTraceRasterInClient } from "~/client/lib/tracing/vtracerWorkerClient";
@@ -2616,6 +2617,7 @@ type HistoryItem = {
   jobCompletedAt?: number;
   jobError?: string | null;
   sourceFileName?: string;
+  sourceFile?: File;
   sourceMimeType?: string;
   sourceFileSize?: number;
   sourcePreviewUrl?: string;
@@ -2881,6 +2883,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     name?: string;
     startedAt?: number;
     fileName?: string;
+    sourceFile?: File;
     sourceSnapshot?: OutputSourceSnapshot;
     conversionCacheKey?: string | null;
     presetLabel?: string;
@@ -2905,6 +2908,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         name?: string;
         startedAt?: number;
         fileName?: string;
+        sourceFile?: File;
         sourceSnapshot?: OutputSourceSnapshot;
         conversionCacheKey?: string | null;
         presetLabel?: string;
@@ -3078,6 +3082,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               jobCompletedAt: Date.now(),
               jobError: null,
               sourceFileName: submitted.fileName ?? item.sourceFileName,
+              sourceFile: item.sourceFile ?? submitted.sourceFile,
               sourceMimeType:
                 submitted.sourceSnapshot?.sourceMimeType ?? item.sourceMimeType,
               sourceFileSize:
@@ -3148,6 +3153,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         jobCompletedAt: Date.now(),
         jobError: null,
         sourceFileName: submitted.fileName,
+        sourceFile: submitted.sourceFile,
         sourceMimeType: submitted.sourceSnapshot?.sourceMimeType,
         sourceFileSize: submitted.sourceSnapshot?.sourceFileSize,
         sourcePreviewUrl: submitted.sourceSnapshot?.sourcePreviewUrl,
@@ -3615,6 +3621,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         name: replaceStamp ? undefined : `Output - ${presetLabel}`,
         startedAt,
         fileName: targetFile.name,
+        sourceFile: targetFile,
         sourceSnapshot,
         conversionCacheKey,
         presetLabel,
@@ -3652,6 +3659,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       name: pendingStamp ? `Output - ${presetLabel}` : undefined,
       startedAt,
       fileName: targetFile.name,
+      sourceFile: targetFile,
       sourceSnapshot,
       conversionCacheKey,
       presetLabel,
@@ -3682,6 +3690,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: targetFile.name,
+        sourceFile: targetFile,
         sourceMimeType: sourceSnapshot.sourceMimeType,
         sourceFileSize: sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
@@ -3906,15 +3915,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (updatingOutputStamp !== null || busy) return;
     const item = history.find((candidate) => candidate.stamp === stamp);
     if (!item) return;
-    if (!file || !outputMatchesActiveSource(item, file)) {
+    const measureRunId = fileMeasureRunIdRef.current;
+    const isCurrent = () => mountedRef.current &&
+      (!file || ownsUploadPreparation(file, measureRunId)) &&
+      historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       patchHistoryItem(stamp, (current) => ({
         ...current,
-        updateError:
-          current.sourceFileName && !file
-            ? `Update preview needs the original source file (${current.sourceFileName}). Copy and download still use the saved SVG.`
-            : current.sourceFileName
-              ? `Update preview needs ${current.sourceFileName}; the active input is ${file?.name || "missing"}. Copy and download still use the saved SVG.`
-              : "Choose a valid source image before updating this output preview.",
+        updateError: current.sourceFileName
+          ? `Update preview needs the original source file (${current.sourceFileName}). Copy and download still use the saved SVG.`
+          : "Choose a valid source image before updating this output preview.",
       }));
       setUpdatingOutputStamp(null);
       return;
@@ -3951,18 +3963,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }));
   }
 
-  function retryOutputJob(stamp: number) {
+  async function retryOutputJob(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp);
     if (!item) return;
-    if (!file || !outputMatchesActiveSource(item, file)) {
+    const measureRunId = fileMeasureRunIdRef.current;
+    const isCurrent = () => mountedRef.current &&
+      (!file || ownsUploadPreparation(file, measureRunId)) &&
+      historyRef.current.includes(item);
+    const matches = file && await matchesOutputSourceFile(item.sourceFile, file, isCurrent);
+    if (!isCurrent()) return;
+    if (!file || !matches) {
       patchHistoryItem(stamp, (current) => ({
         ...current,
-        jobError:
-          current.sourceFileName && !file
-            ? `Retry needs the original source file (${current.sourceFileName}).`
-            : current.sourceFileName
-              ? `Retry needs ${current.sourceFileName}; the active input is ${file?.name || "missing"}.`
-              : "Choose a valid source image before retrying this output.",
+        jobError: current.sourceFileName
+          ? `Retry needs the original source file (${current.sourceFileName}).`
+          : "Choose a valid source image before retrying this output.",
       }));
       return;
     }
