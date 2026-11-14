@@ -203,6 +203,7 @@ export function AdSenseDelayed({
         overflow: "hidden",
         width: "100%",
       }}
+      role="group"
       aria-label="Advertisements"
     >
       {showPlaceholder && (

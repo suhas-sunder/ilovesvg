@@ -151,6 +151,7 @@ export function OtherToolsLinks({
   return (
     <section
       id="other-tools"
+      aria-labelledby="other-tools-heading"
       className="mt-12 border-t border-slate-200 bg-white"
     >
       <div className="max-w-[1180px] mx-auto px-4 py-10">
@@ -161,7 +162,7 @@ export function OtherToolsLinks({
         ) : null}
 
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
+          <h2 id="other-tools-heading" className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
             {title}
           </h2>
           <p className="text-sm sm:text-base font-semibold text-slate-700 max-w-[80ch] leading-relaxed">
