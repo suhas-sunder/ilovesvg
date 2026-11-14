@@ -1,0 +1,3804 @@
+{
+  "routes": [
+    "/sticker-to-png-for-printing",
+    "/svg-to-png-converter",
+    "/svg-to-png-for-canva",
+    "/svg-to-png-for-etsy",
+    "/svg-to-png-for-figma",
+    "/svg-to-png-for-printful",
+    "/svg-to-png-for-printify",
+    "/svg-to-png-for-shopify",
+    "/svg-to-transparent-png-for-printing"
+  ],
+  "routeCount": 9,
+  "viewportCount": 7,
+  "routeViewportCount": 63,
+  "stateCount": 477,
+  "maximumDocumentScrollWidth": 1265,
+  "measurements": [
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -274,
+            "bottom": -209,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.44,
+            "bottom": 3102.44,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-converter",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -303,
+            "bottom": -238,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.83,
+            "bottom": 3102.83,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-shopify",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -748,
+            "bottom": -683,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -280.61,
+            "bottom": -256.61,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -274,
+            "bottom": -209,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.44,
+            "bottom": 3102.44,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-etsy",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -303,
+            "bottom": -238,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.83,
+            "bottom": 3102.83,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printify",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -303,
+            "bottom": -238,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.83,
+            "bottom": 3102.83,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-printful",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -303,
+            "bottom": -238,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2843.08,
+            "bottom": 3080.08,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -297,
+            "bottom": -232,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.2,
+            "bottom": 3064.2,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1729.78,
+            "bottom": 1996.78,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.2,
+            "bottom": 2999.2,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1511.02,
+            "bottom": 1808.52,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/sticker-to-png-for-printing",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -303,
+            "bottom": -238,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2843.08,
+            "bottom": 3080.08,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -297,
+            "bottom": -232,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.2,
+            "bottom": 3064.2,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1729.78,
+            "bottom": 1996.78,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.2,
+            "bottom": 2999.2,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1511.02,
+            "bottom": 1808.52,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-transparent-png-for-printing",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -589,
+            "bottom": -520,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -274,
+            "bottom": -209,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.44,
+            "bottom": 3102.44,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-canva",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 320,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 320,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 305,
+      "maxBodyScrollWidth": 305,
+      "maximumVisibleRightEdge": 305,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "305px",
+          "scrollWidth": 305,
+          "clientWidth": 305,
+          "rect": {
+            "left": 0,
+            "right": 305,
+            "top": -777,
+            "bottom": -712,
+            "width": 305,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "305px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "span.truncate",
+          "owner": "SVG-to-PNG converter",
+          "computedWidth": "195.656px",
+          "scrollWidth": 517,
+          "clientWidth": 196,
+          "rect": {
+            "left": 38,
+            "right": 233.66,
+            "top": -281.22,
+            "bottom": -257.22,
+            "width": 195.66,
+            "height": 24
+          },
+          "rules": {
+            "minWidth": "auto",
+            "width": "195.656px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "nowrap",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 360,
+        "height": 800
+      },
+      "measuredViewport": {
+        "innerWidth": 360,
+        "innerHeight": 800
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 345,
+      "maxBodyScrollWidth": 345,
+      "maximumVisibleRightEdge": 345,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "345px",
+          "scrollWidth": 345,
+          "clientWidth": 345,
+          "rect": {
+            "left": 0,
+            "right": 345,
+            "top": -274,
+            "bottom": -209,
+            "width": 345,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "345px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "237px",
+          "scrollWidth": 900,
+          "clientWidth": 235,
+          "rect": {
+            "left": 54,
+            "right": 291,
+            "top": 2865.44,
+            "bottom": 3102.44,
+            "width": 237,
+            "height": 237
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "237px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 375,
+        "height": 812
+      },
+      "measuredViewport": {
+        "innerWidth": 375,
+        "innerHeight": 812
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 360,
+      "maxBodyScrollWidth": 360,
+      "maximumVisibleRightEdge": 360,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "360px",
+          "scrollWidth": 360,
+          "clientWidth": 360,
+          "rect": {
+            "left": 0,
+            "right": 360,
+            "top": -268,
+            "bottom": -203,
+            "width": 360,
+            "height": 65
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "360px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        },
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "252px",
+          "scrollWidth": 900,
+          "clientWidth": 250,
+          "rect": {
+            "left": 54,
+            "right": 306,
+            "top": 2812.81,
+            "bottom": 3064.81,
+            "width": 252,
+            "height": 252
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "252px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "measuredViewport": {
+        "innerWidth": 390,
+        "innerHeight": 844
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 375,
+      "maxBodyScrollWidth": 375,
+      "maximumVisibleRightEdge": 375,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "267px",
+          "scrollWidth": 900,
+          "clientWidth": 265,
+          "rect": {
+            "left": 54,
+            "right": 321,
+            "top": 1706.39,
+            "bottom": 1973.39,
+            "width": 267,
+            "height": 267
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "267px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 412,
+        "height": 915
+      },
+      "measuredViewport": {
+        "innerWidth": 412,
+        "innerHeight": 915
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 397,
+      "maxBodyScrollWidth": 397,
+      "maximumVisibleRightEdge": 397,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "289px",
+          "scrollWidth": 900,
+          "clientWidth": 287,
+          "rect": {
+            "left": 54,
+            "right": 343,
+            "top": 2710.81,
+            "bottom": 2999.81,
+            "width": 289,
+            "height": 289
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "289px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "measuredViewport": {
+        "innerWidth": 768,
+        "innerHeight": 1024
+      },
+      "stateCount": 7,
+      "maxDocumentScrollWidth": 753,
+      "maxBodyScrollWidth": 753,
+      "maximumVisibleRightEdge": 753,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "div.relative.grid.aspect-square",
+          "owner": "supporting page content",
+          "computedWidth": "297.5px",
+          "scrollWidth": 900,
+          "clientWidth": 296,
+          "rect": {
+            "left": 54,
+            "right": 351.5,
+            "top": 1518.36,
+            "bottom": 1815.86,
+            "width": 297.5,
+            "height": 297.5
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "297.5px",
+            "gridTemplateColumns": "900px",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "hidden",
+            "whiteSpace": "normal",
+            "position": "relative"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": null,
+      "resetAndSecondUpload": null
+    },
+    {
+      "route": "/svg-to-png-for-figma",
+      "requestedViewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "measuredViewport": {
+        "innerWidth": 1280,
+        "innerHeight": 720
+      },
+      "stateCount": 9,
+      "maxDocumentScrollWidth": 1265,
+      "maxBodyScrollWidth": 1265,
+      "maximumVisibleRightEdge": 1265,
+      "horizontalScrollContainers": [],
+      "widestRenderedElements": [
+        {
+          "selector": "header.block.top-0.z-50",
+          "owner": "shared navigation",
+          "computedWidth": "1265px",
+          "scrollWidth": 1265,
+          "clientWidth": 1265,
+          "rect": {
+            "left": 0,
+            "right": 1265,
+            "top": -553,
+            "bottom": -484,
+            "width": 1265,
+            "height": 69
+          },
+          "rules": {
+            "minWidth": "0px",
+            "width": "1265px",
+            "gridTemplateColumns": "none",
+            "flex": "0 1 auto",
+            "transform": "none",
+            "overflowX": "visible",
+            "whiteSpace": "normal",
+            "position": "static"
+          },
+          "visible": true,
+          "clippedBy": null
+        }
+      ],
+      "downloadedFilename": "responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg.png",
+      "resetAndSecondUpload": {
+        "resetPassed": true,
+        "previewWidth": 96,
+        "previewHeight": 64,
+        "selectedFilename": "fillsSvg.svg"
+      }
+    }
+  ],
+  "screenshotsRetained": false,
+  "downloadsRetained": false,
+  "temporaryRoot": "removed by converter parity audit",
+  "ok": true
+}

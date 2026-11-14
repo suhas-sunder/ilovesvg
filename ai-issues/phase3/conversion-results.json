@@ -1,0 +1,3111 @@
+{
+  "builds": {
+    "technicalFoundation": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+    "phase1": "78dda78994ea90e7b3a839725021bc316463434e",
+    "before": "40856446cf75a0a58070b72bf218002789bad48d",
+    "correction": "226c7233551326f1fbc248bc5d64f1bbacead6a2",
+    "candidateTrackedTree": "7bc288cb5b4076101de77d8c1c042be901020417"
+  },
+  "localNode": "20.20.2",
+  "corpus": [
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "simple-logo",
+      "sourceSize": [
+        180,
+        130
+      ],
+      "sourceSha256": "ac9adcd2714dbf7828c1451a19cf0dd8958ea16d964e9da17fe02aad2ca32081",
+      "sourceBytes": 2506,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 1110,
+      "downloadSha256": "2e4aaa19267de0f51986a2c25b95b3fe28922dd622e7818f763e81d16891500c",
+      "previewMarkupSha256": "2e4aaa19267de0f51986a2c25b95b3fe28922dd622e7818f763e81d16891500c",
+      "browserPreviewPngSha256": "1a4248b0253455ad02a5fc22b7a82218cfc0d675acd4d3db925c0e10add111d7",
+      "browserPreviewDimensions": [
+        180,
+        130
+      ],
+      "readyMs": {
+        "technicalFoundation": 1399,
+        "phase1": 1430,
+        "candidate": 1436
+      },
+      "structure": {
+        "viewBox": "0 0 180 130",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          180,
+          130
+        ],
+        "rasterSample": [
+          180,
+          130
+        ],
+        "rasterHash": "7c0111323da287404dc12f0f0c2841db1d18afb2f283afb5605a84d4262a9aa2",
+        "inkBounds": [
+          26,
+          15,
+          155,
+          119
+        ],
+        "nonzeroAlpha": {
+          "source": 23400,
+          "result": 4941,
+          "translucentResult": 444
+        },
+        "alphaMAE": 203.523,
+        "compositedRGBMAE": 1.19,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "silhouette",
+      "sourceSize": [
+        210,
+        160
+      ],
+      "sourceSha256": "8fe8624c46d1a64a985acb44a1bc8ea696887e4491a2bf139cc80cd11977ebf7",
+      "sourceBytes": 3152,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 2599,
+      "downloadSha256": "92a3e44675b68f7d08f1cc2fe1c6c03b70c43ffc1d4e6515e73fc9af2a91736c",
+      "previewMarkupSha256": "92a3e44675b68f7d08f1cc2fe1c6c03b70c43ffc1d4e6515e73fc9af2a91736c",
+      "browserPreviewPngSha256": "fbb7c3d120767f0ff078002f276dc1c8c36f29d938671d5e66ba1328c8040301",
+      "browserPreviewDimensions": [
+        210,
+        160
+      ],
+      "readyMs": {
+        "technicalFoundation": 253,
+        "phase1": 264,
+        "candidate": 336
+      },
+      "structure": {
+        "viewBox": "0 0 210 160",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          210,
+          160
+        ],
+        "rasterSample": [
+          210,
+          160
+        ],
+        "rasterHash": "5d109dbf7fbc0dfb94161293648ace2f86f13d88aa25ce43cb7d27154f665d94",
+        "inkBounds": [
+          14,
+          40,
+          193,
+          138
+        ],
+        "nonzeroAlpha": {
+          "source": 33600,
+          "result": 10825,
+          "translucentResult": 604
+        },
+        "alphaMAE": 175.09,
+        "compositedRGBMAE": 1.003,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "multicolor",
+      "sourceSize": [
+        300,
+        200
+      ],
+      "sourceSha256": "40559988639336fd109d1c78c91710d6a89c9132881acd2ba5bf199ac94c879c",
+      "sourceBytes": 6312,
+      "preset": "Layered - Flat Color",
+      "engine": "vtracer",
+      "posts": 0,
+      "serverPreset": null,
+      "downloadBytes": 5442,
+      "downloadSha256": "1da66d28663bd6f7c4b7d4153c3c6cf7e4646117f216da2a12bc787dc10a94bf",
+      "previewMarkupSha256": "1da66d28663bd6f7c4b7d4153c3c6cf7e4646117f216da2a12bc787dc10a94bf",
+      "browserPreviewPngSha256": "a2da3060a05e7373f6c77761d22a1c35bfdc2c1918cc09cbe930fbb7b828997d",
+      "browserPreviewDimensions": [
+        300,
+        200
+      ],
+      "readyMs": {
+        "technicalFoundation": 2416,
+        "phase1": 2435,
+        "candidate": 3483
+      },
+      "structure": {
+        "viewBox": "0 0 300 200",
+        "paths": 6,
+        "subpaths": 187,
+        "groupedPathCounts": [
+          5
+        ],
+        "fills": [
+          "#16324F",
+          "#67A79C",
+          "#DC544A",
+          "#F99E36",
+          "none"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          300,
+          200
+        ],
+        "rasterSample": [
+          300,
+          200
+        ],
+        "rasterHash": "809e6d8d3810f32fdd0b10c5d0861b6f861eff55e45e1e0417ee05b84a207bef",
+        "inkBounds": [
+          10,
+          18,
+          284,
+          189
+        ],
+        "nonzeroAlpha": {
+          "source": 24422,
+          "result": 24309,
+          "translucentResult": 700
+        },
+        "alphaMAE": 1.665,
+        "compositedRGBMAE": 2.118,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "transparent-icon",
+      "sourceSize": [
+        144,
+        144
+      ],
+      "sourceSha256": "c8f01526d1af43843afe603c4d8a45cceaf5172f4cedf92773d312e7d26d8860",
+      "sourceBytes": 3727,
+      "preset": "Filled Layers - Separate Colors",
+      "engine": "vtracer",
+      "posts": 0,
+      "serverPreset": null,
+      "downloadBytes": 2418,
+      "downloadSha256": "cca897362de04af5441a9cc7bda2babec994c6543f836b680147584be7e18fab",
+      "previewMarkupSha256": "cca897362de04af5441a9cc7bda2babec994c6543f836b680147584be7e18fab",
+      "browserPreviewPngSha256": "db9e239cbba4e3f9ef0d0dc86a47f56c6baa610841ad81ca78cc005ed709a2f9",
+      "browserPreviewDimensions": [
+        144,
+        144
+      ],
+      "readyMs": {
+        "technicalFoundation": 875,
+        "phase1": 857,
+        "candidate": 1368
+      },
+      "structure": {
+        "viewBox": "0 0 144 144",
+        "paths": 4,
+        "subpaths": 75,
+        "groupedPathCounts": [
+          3
+        ],
+        "fills": [
+          "#194da9",
+          "#42AA78",
+          "none"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          144,
+          144
+        ],
+        "rasterSample": [
+          144,
+          144
+        ],
+        "rasterHash": "833a41394dd3662066d4825e725e6ad0c2b59d061e1754a4a537967c6296699c",
+        "inkBounds": [
+          10,
+          10,
+          133,
+          133
+        ],
+        "nonzeroAlpha": {
+          "source": 12280,
+          "result": 12193,
+          "translucentResult": 0
+        },
+        "alphaMAE": 61.103,
+        "compositedRGBMAE": 33.318,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "photograph",
+      "sourceSize": [
+        384,
+        384
+      ],
+      "sourceSha256": "9251fbc9e5ef674b0becfd980f4c280b69face3ce502e0fde952473c1ac55f8d",
+      "sourceBytes": 31530,
+      "preset": "Photo Many Colors",
+      "engine": "vtracer",
+      "posts": 0,
+      "serverPreset": null,
+      "downloadBytes": 89461,
+      "downloadSha256": "94829d80b992184ddbf5f8ffaa16cd2e2a0dbf5eff330ecd786580da8fe9330f",
+      "previewMarkupSha256": "94829d80b992184ddbf5f8ffaa16cd2e2a0dbf5eff330ecd786580da8fe9330f",
+      "browserPreviewPngSha256": "7e6a746c2d13fc6565a345b5b4728f26c77045c954b802f80f10196c5b3715bd",
+      "browserPreviewDimensions": [
+        384,
+        384
+      ],
+      "readyMs": {
+        "technicalFoundation": 6505,
+        "phase1": 5998,
+        "candidate": 6531
+      },
+      "structure": {
+        "viewBox": "0 0 384 384",
+        "paths": 162,
+        "subpaths": 163,
+        "groupedPathCounts": [],
+        "fills": [
+          "#080909",
+          "#1C2B3A",
+          "#1c2b3a",
+          "#2E455E",
+          "#2e455e",
+          "#3C454E",
+          "#3F5870",
+          "#3c454e",
+          "#3f5870",
+          "#413933",
+          "#54677B",
+          "#54677b",
+          "#5E6369",
+          "#5F7082",
+          "#5e6369",
+          "#5f7082",
+          "#6A6C67",
+          "#7D8B9A",
+          "#7d8b9a",
+          "#8A7C6E",
+          "#8a7c6e",
+          "#959693",
+          "#95A0AF",
+          "#95a0af",
+          "#AFB5C0",
+          "#B89E8F",
+          "#C3B4A9",
+          "#CDCED3",
+          "#F1F0EF",
+          "#afb5c0",
+          "#b89e8f",
+          "#c3b4a9",
+          "#cdced3",
+          "#f1f0ef",
+          "none"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          384,
+          384
+        ],
+        "rasterSample": [
+          350,
+          350
+        ],
+        "rasterHash": "a27d7997273a0ae50291c56e6a0129ed55c35ecd292801f0b696308389817636",
+        "inkBounds": [
+          0,
+          0,
+          349,
+          349
+        ],
+        "nonzeroAlpha": {
+          "source": 122500,
+          "result": 122500,
+          "translucentResult": 0
+        },
+        "alphaMAE": 0,
+        "compositedRGBMAE": 30.451,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "fine-lettering",
+      "sourceSize": [
+        230,
+        78
+      ],
+      "sourceSha256": "92dee85235aec02f548c86494eceb0ffb4c20c768c1ca4bbcc196470a04c1b57",
+      "sourceBytes": 3777,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 22594,
+      "downloadSha256": "7d478be76032f589718989f7b2b928977d5c18f1bd355978bc2c1640e52e7379",
+      "previewMarkupSha256": "7d478be76032f589718989f7b2b928977d5c18f1bd355978bc2c1640e52e7379",
+      "browserPreviewPngSha256": "018ab9c089b9fd177c74417bccbbf8a7b9b3017584cd38451fdcfc071d1eeb29",
+      "browserPreviewDimensions": [
+        230,
+        78
+      ],
+      "readyMs": {
+        "technicalFoundation": 238,
+        "phase1": 235,
+        "candidate": 290
+      },
+      "structure": {
+        "viewBox": "0 0 230 78",
+        "paths": 1,
+        "subpaths": 38,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          230,
+          78
+        ],
+        "rasterSample": [
+          230,
+          78
+        ],
+        "rasterHash": "6f701ff1784df51489c311b5b7f0009de84aa6a43d64450b21b0eb5bfb8b0475",
+        "inkBounds": [
+          12,
+          16,
+          139,
+          65
+        ],
+        "nonzeroAlpha": {
+          "source": 17940,
+          "result": 1907,
+          "translucentResult": 1203
+        },
+        "alphaMAE": 235.715,
+        "compositedRGBMAE": 8.527,
+        "inkRegions": [
+          {
+            "region": [
+              10,
+              10,
+              170,
+              34
+            ],
+            "source": 710,
+            "result": 823
+          },
+          {
+            "region": [
+              10,
+              36,
+              170,
+              52
+            ],
+            "source": 488,
+            "result": 585
+          },
+          {
+            "region": [
+              10,
+              52,
+              170,
+              67
+            ],
+            "source": 350,
+            "result": 415
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "thin-lines",
+      "sourceSize": [
+        240,
+        150
+      ],
+      "sourceSha256": "425f1aa5b8f797433830c299636af62659617a83182ce45fbcc44192f2b870e5",
+      "sourceBytes": 634,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 1579,
+      "downloadSha256": "98cdd79fb7142a0c8986fb014f1615e57e482327d1343579db4b8dd4b826af52",
+      "previewMarkupSha256": "98cdd79fb7142a0c8986fb014f1615e57e482327d1343579db4b8dd4b826af52",
+      "browserPreviewPngSha256": "58bd1fe20f23427351871f5b9a80d0613b9d2eb293cf3dae1aa34d20f321ad69",
+      "browserPreviewDimensions": [
+        240,
+        150
+      ],
+      "readyMs": {
+        "technicalFoundation": 1381,
+        "phase1": 1388,
+        "candidate": 1393
+      },
+      "structure": {
+        "viewBox": "0 0 240 150",
+        "paths": 1,
+        "subpaths": 6,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          240,
+          150
+        ],
+        "rasterSample": [
+          240,
+          150
+        ],
+        "rasterHash": "2166013f3fc76ba90e813c7a26240eac87431cab64e9211e6999c9ca5948ab34",
+        "inkBounds": [
+          10,
+          14,
+          219,
+          126
+        ],
+        "nonzeroAlpha": {
+          "source": 36000,
+          "result": 3352,
+          "translucentResult": 1692
+        },
+        "alphaMAE": 234.103,
+        "compositedRGBMAE": 7.659,
+        "inkRegions": [
+          {
+            "region": [
+              7,
+              11,
+              224,
+              19
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              33,
+              224,
+              41
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              55,
+              224,
+              63
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              77,
+              224,
+              85
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              99,
+              224,
+              107
+            ],
+            "source": 840,
+            "result": 836
+          },
+          {
+            "region": [
+              7,
+              121,
+              224,
+              129
+            ],
+            "source": 840,
+            "result": 836
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "pale-text",
+      "sourceSize": [
+        230,
+        78
+      ],
+      "sourceSha256": "66d1dafa3460f3eba3a97647d15d2affe994c2ffb4fda5d907be4c0494f90df4",
+      "sourceBytes": 2439,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 280,
+      "downloadSha256": "0a420799022ed1d8e22ddf788da3789f8a0bdfee76c96c5f4cfc0bc37313bc21",
+      "previewMarkupSha256": "0a420799022ed1d8e22ddf788da3789f8a0bdfee76c96c5f4cfc0bc37313bc21",
+      "browserPreviewPngSha256": "cd3c4e0bbede8cdfe191e27fefac58bd45af76eaad6245849da08aa30ab6ed12",
+      "browserPreviewDimensions": [
+        230,
+        78
+      ],
+      "readyMs": {
+        "technicalFoundation": 239,
+        "phase1": 239,
+        "candidate": 254
+      },
+      "structure": {
+        "viewBox": "0 0 230 78",
+        "paths": 1,
+        "subpaths": 1,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          230,
+          78
+        ],
+        "rasterSample": [
+          230,
+          78
+        ],
+        "rasterHash": "bb216b1ebdcf2e1ececcd1eff84dce12bc502cb2308e3c3ff929202282cfc1df",
+        "inkBounds": [
+          178,
+          12,
+          205,
+          24
+        ],
+        "nonzeroAlpha": {
+          "source": 17940,
+          "result": 364,
+          "translucentResult": 0
+        },
+        "alphaMAE": 249.826,
+        "compositedRGBMAE": 2.094,
+        "inkRegions": [
+          {
+            "region": [
+              10,
+              10,
+              170,
+              34
+            ],
+            "source": 552,
+            "result": 0
+          },
+          {
+            "region": [
+              10,
+              36,
+              170,
+              52
+            ],
+            "source": 293,
+            "result": 0
+          },
+          {
+            "region": [
+              10,
+              52,
+              170,
+              67
+            ],
+            "source": 217,
+            "result": 0
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "complex-background",
+      "sourceSize": [
+        310,
+        226
+      ],
+      "sourceSha256": "7803fd00ea3c51f14ca478891e1ac27fd1d3475776156481d49aaa2e4bef5283",
+      "sourceBytes": 33086,
+      "preset": "Layered - Flat Color",
+      "engine": "vtracer",
+      "posts": 0,
+      "serverPreset": null,
+      "downloadBytes": 56563,
+      "downloadSha256": "fb5f8c6bb5ebaf63bc33a1819e7ef93ed38d320c9335c642a0e089741a01c899",
+      "previewMarkupSha256": "fb5f8c6bb5ebaf63bc33a1819e7ef93ed38d320c9335c642a0e089741a01c899",
+      "browserPreviewPngSha256": "a8cf135ed868111e09194f8aca521b57bafb8dbc94d97a6a983543914292eeb6",
+      "browserPreviewDimensions": [
+        310,
+        226
+      ],
+      "readyMs": {
+        "technicalFoundation": 3944,
+        "phase1": 4456,
+        "candidate": 4996
+      },
+      "structure": {
+        "viewBox": "0 0 310 226",
+        "paths": 181,
+        "subpaths": 183,
+        "groupedPathCounts": [],
+        "fills": [
+          "#0C0F18",
+          "#0F3B4B",
+          "#0f3b4b",
+          "#178D9C",
+          "#178d9c",
+          "#3ECEA4",
+          "#3ecea4",
+          "#57305A",
+          "#57305a",
+          "#A661CB",
+          "#C9A835",
+          "#EB6363",
+          "#F7F8FD",
+          "#FDE0A3",
+          "#a661cb",
+          "#c9a835",
+          "#eb6363",
+          "#fde0a3",
+          "none"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          310,
+          226
+        ],
+        "rasterSample": [
+          310,
+          226
+        ],
+        "rasterHash": "a8bb47a232377e8b74af166dbd4f8717a731f73321bbed498726e78516e24e1e",
+        "inkBounds": [
+          0,
+          0,
+          309,
+          225
+        ],
+        "nonzeroAlpha": {
+          "source": 70060,
+          "result": 70060,
+          "translucentResult": 0
+        },
+        "alphaMAE": 0,
+        "compositedRGBMAE": 11.519,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "layered-artwork",
+      "sourceSize": [
+        245,
+        204
+      ],
+      "sourceSha256": "28dc4de0155a9e72ce2231a7c75034bf646bb0a1856ac8ad0c870a763fdf607a",
+      "sourceBytes": 5388,
+      "preset": "Filled Layers - Separate Colors",
+      "engine": "vtracer",
+      "posts": 0,
+      "serverPreset": null,
+      "downloadBytes": 6061,
+      "downloadSha256": "e1b80e45b6757f55c69a32c6c5c8459639eff07e410b53b005c5fe0e00104cb2",
+      "previewMarkupSha256": "e1b80e45b6757f55c69a32c6c5c8459639eff07e410b53b005c5fe0e00104cb2",
+      "browserPreviewPngSha256": "43519595517abfff6c4094d1c5ffe871a5c39e5183d8c8ccff23497e6ab1b9f8",
+      "browserPreviewDimensions": [
+        245,
+        204
+      ],
+      "readyMs": {
+        "technicalFoundation": 1375,
+        "phase1": 1402,
+        "candidate": 1384
+      },
+      "structure": {
+        "viewBox": "0 0 245 204",
+        "paths": 15,
+        "subpaths": 142,
+        "groupedPathCounts": [
+          14
+        ],
+        "fills": [
+          "#1357ad",
+          "#232236",
+          "#B64D41",
+          "#E64B23",
+          "#F3C748",
+          "none"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          245,
+          204
+        ],
+        "rasterSample": [
+          245,
+          204
+        ],
+        "rasterHash": "a223ffa2ee8493cfea56b0680c831961552dc559276a0f3c47aa87dd98d1bc23",
+        "inkBounds": [
+          25,
+          20,
+          244,
+          179
+        ],
+        "nonzeroAlpha": {
+          "source": 27952,
+          "result": 27841,
+          "translucentResult": 435
+        },
+        "alphaMAE": 8.356,
+        "compositedRGBMAE": 5.642,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 1,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "large-input",
+      "sourceSize": [
+        4800,
+        3400
+      ],
+      "sourceSha256": "c15c98849164a07e80fefe464491fa506cfe0bbf989a8223223354845f8254e5",
+      "sourceBytes": 275212,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 5901,
+      "downloadSha256": "3e8e20b06fcc5d87d0cbdd5bb9788bdcb5555f25738516ce684a68e44b3de9da",
+      "previewMarkupSha256": "3e8e20b06fcc5d87d0cbdd5bb9788bdcb5555f25738516ce684a68e44b3de9da",
+      "browserPreviewPngSha256": "736f281668a4cdc826af46e8cc7630d175535881129882795ba1b86ab9b5b919",
+      "browserPreviewDimensions": [
+        3000,
+        2125
+      ],
+      "readyMs": {
+        "technicalFoundation": 1941,
+        "phase1": 1988,
+        "candidate": 2056
+      },
+      "structure": {
+        "viewBox": "0 0 3000 2125",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          3000,
+          2125
+        ],
+        "rasterSample": [
+          350,
+          248
+        ],
+        "rasterHash": "10d59ec790a356b87870dc107c93ae3dc2d02d665e81845ed7e5e15d141135c4",
+        "inkBounds": [
+          11,
+          19,
+          337,
+          235
+        ],
+        "nonzeroAlpha": {
+          "source": 86800,
+          "result": 36348,
+          "translucentResult": 2214
+        },
+        "alphaMAE": 151.41,
+        "compositedRGBMAE": 46.135,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "chromium",
+      "version": "147.0.7727.15",
+      "input": "small-input",
+      "sourceSize": [
+        8,
+        8
+      ],
+      "sourceSha256": "aa77920651ada2155d1de57c2f804dc82639a9b63a7ca791bcdef90ddbf21889",
+      "sourceBytes": 104,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 460,
+      "downloadSha256": "c0a1864b9adade18e1976041f49641889fdc16d977079708dd1e914b96366a47",
+      "previewMarkupSha256": "c0a1864b9adade18e1976041f49641889fdc16d977079708dd1e914b96366a47",
+      "browserPreviewPngSha256": "c0205f73aaffcf04e8f787c8f733fac772b8236207dfc97fb02388e52a29f65d",
+      "browserPreviewDimensions": [
+        8,
+        8
+      ],
+      "readyMs": {
+        "technicalFoundation": 1406,
+        "phase1": 1393,
+        "candidate": 1555
+      },
+      "structure": {
+        "viewBox": "0 0 8 8",
+        "paths": 1,
+        "subpaths": 1,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          8,
+          8
+        ],
+        "rasterSample": [
+          8,
+          8
+        ],
+        "rasterHash": "e0d1a41385307098787c874144287572a6875f8f6bfd11f59806c641553762f1",
+        "inkBounds": [
+          1,
+          1,
+          6,
+          6
+        ],
+        "nonzeroAlpha": {
+          "source": 64,
+          "result": 35,
+          "translucentResult": 20
+        },
+        "alphaMAE": 134.078,
+        "compositedRGBMAE": 16.547,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "simple-logo",
+      "sourceSize": [
+        180,
+        130
+      ],
+      "sourceSha256": "ac9adcd2714dbf7828c1451a19cf0dd8958ea16d964e9da17fe02aad2ca32081",
+      "sourceBytes": 2506,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 1110,
+      "downloadSha256": "2e4aaa19267de0f51986a2c25b95b3fe28922dd622e7818f763e81d16891500c",
+      "previewMarkupSha256": "2e4aaa19267de0f51986a2c25b95b3fe28922dd622e7818f763e81d16891500c",
+      "browserPreviewPngSha256": "7a07357be3f7dacd17fb52a86340ee22293783013b5649d1155d4eba03beecea",
+      "browserPreviewDimensions": [
+        180,
+        130
+      ],
+      "readyMs": {
+        "technicalFoundation": 1472,
+        "phase1": 1445,
+        "candidate": 1453
+      },
+      "structure": {
+        "viewBox": "0 0 180 130",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          180,
+          130
+        ],
+        "rasterSample": [
+          180,
+          130
+        ],
+        "rasterHash": "7c0111323da287404dc12f0f0c2841db1d18afb2f283afb5605a84d4262a9aa2",
+        "inkBounds": [
+          26,
+          15,
+          155,
+          119
+        ],
+        "nonzeroAlpha": {
+          "source": 23400,
+          "result": 4941,
+          "translucentResult": 444
+        },
+        "alphaMAE": 203.523,
+        "compositedRGBMAE": 1.19,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "silhouette",
+      "sourceSize": [
+        210,
+        160
+      ],
+      "sourceSha256": "8fe8624c46d1a64a985acb44a1bc8ea696887e4491a2bf139cc80cd11977ebf7",
+      "sourceBytes": 3152,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 2599,
+      "downloadSha256": "92a3e44675b68f7d08f1cc2fe1c6c03b70c43ffc1d4e6515e73fc9af2a91736c",
+      "previewMarkupSha256": "92a3e44675b68f7d08f1cc2fe1c6c03b70c43ffc1d4e6515e73fc9af2a91736c",
+      "browserPreviewPngSha256": "b1758b51c512a32abfe60ebdb3e4498ffa3cb029252662c12f4ff0d19d8e4b3a",
+      "browserPreviewDimensions": [
+        210,
+        160
+      ],
+      "readyMs": {
+        "technicalFoundation": 303,
+        "phase1": 471,
+        "candidate": 368
+      },
+      "structure": {
+        "viewBox": "0 0 210 160",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          210,
+          160
+        ],
+        "rasterSample": [
+          210,
+          160
+        ],
+        "rasterHash": "5d109dbf7fbc0dfb94161293648ace2f86f13d88aa25ce43cb7d27154f665d94",
+        "inkBounds": [
+          14,
+          40,
+          193,
+          138
+        ],
+        "nonzeroAlpha": {
+          "source": 33600,
+          "result": 10825,
+          "translucentResult": 604
+        },
+        "alphaMAE": 175.09,
+        "compositedRGBMAE": 1.003,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "multicolor",
+      "sourceSize": [
+        300,
+        200
+      ],
+      "sourceSha256": "40559988639336fd109d1c78c91710d6a89c9132881acd2ba5bf199ac94c879c",
+      "sourceBytes": 6312,
+      "preset": "Layered - Flat Color",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "layered-flat-color",
+      "downloadBytes": 1593,
+      "downloadSha256": "d7505b079c511645fce8ae5719410fe6f1f9ce0353a0accb276015ad5c11af66",
+      "previewMarkupSha256": "d7505b079c511645fce8ae5719410fe6f1f9ce0353a0accb276015ad5c11af66",
+      "browserPreviewPngSha256": "d437b5dcdcd5fe136da2d842b70019d8f999b24a989901ecd7ae12e213c49731",
+      "browserPreviewDimensions": [
+        300,
+        200
+      ],
+      "readyMs": {
+        "technicalFoundation": 1485,
+        "phase1": 1512,
+        "candidate": 1506
+      },
+      "structure": {
+        "viewBox": "0 0 300 200",
+        "paths": 5,
+        "subpaths": 6,
+        "groupedPathCounts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "fills": [
+          "#163453",
+          "#46777d",
+          "#69a99e",
+          "#eb594f",
+          "#f89f38"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          300,
+          200
+        ],
+        "rasterSample": [
+          300,
+          200
+        ],
+        "rasterHash": "63f25045f409610ce71f37963d63d636c58bc33c6fdc42f2873a496ded9aa000",
+        "inkBounds": [
+          10,
+          18,
+          284,
+          189
+        ],
+        "nonzeroAlpha": {
+          "source": 24422,
+          "result": 24519,
+          "translucentResult": 1642
+        },
+        "alphaMAE": 2.919,
+        "compositedRGBMAE": 2.007,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "transparent-icon",
+      "sourceSize": [
+        144,
+        144
+      ],
+      "sourceSha256": "c8f01526d1af43843afe603c4d8a45cceaf5172f4cedf92773d312e7d26d8860",
+      "sourceBytes": 3727,
+      "preset": "Filled Layers - Separate Colors",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "filled-layers-separate-colors",
+      "downloadBytes": 2833,
+      "downloadSha256": "a642f5d40f3361269b9c6ce038e8705d4a102f128403ff30c758b314118b9e62",
+      "previewMarkupSha256": "a642f5d40f3361269b9c6ce038e8705d4a102f128403ff30c758b314118b9e62",
+      "browserPreviewPngSha256": "4c947fca1145bb5f106cf1ac186d49827e4902d043ac86e1ef8a6d208ecfbedd",
+      "browserPreviewDimensions": [
+        144,
+        144
+      ],
+      "readyMs": {
+        "technicalFoundation": 487,
+        "phase1": 389,
+        "candidate": 411
+      },
+      "structure": {
+        "viewBox": "0 0 144 144",
+        "paths": 8,
+        "subpaths": 14,
+        "groupedPathCounts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "fills": [
+          "#1544af",
+          "#194ea9",
+          "#1f5ba2",
+          "#276d98",
+          "#2f7e8f",
+          "#358d87",
+          "#3b9a80",
+          "#41a779"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          144,
+          144
+        ],
+        "rasterSample": [
+          144,
+          144
+        ],
+        "rasterHash": "a803e21665328a20d4b4da55e6ddbbe45af71b0d7b0122b55bd21111a2b5a78d",
+        "inkBounds": [
+          9,
+          10,
+          134,
+          133
+        ],
+        "nonzeroAlpha": {
+          "source": 12280,
+          "result": 12307,
+          "translucentResult": 957
+        },
+        "alphaMAE": 60.145,
+        "compositedRGBMAE": 32.793,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "photograph",
+      "sourceSize": [
+        384,
+        384
+      ],
+      "sourceSha256": "9251fbc9e5ef674b0becfd980f4c280b69face3ce502e0fde952473c1ac55f8d",
+      "sourceBytes": 31530,
+      "preset": "Photo Many Colors",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "photo-many-colors",
+      "downloadBytes": 159951,
+      "downloadSha256": "3f0b0e7667f5be3dbb53a47dd5ccfda219a2473958fd48378069929da99d1db2",
+      "previewMarkupSha256": "3f0b0e7667f5be3dbb53a47dd5ccfda219a2473958fd48378069929da99d1db2",
+      "browserPreviewPngSha256": "db91a4101e25e74bde84a56ee9129c3aa9cd287aafed2040e64a3a9032092282",
+      "browserPreviewDimensions": [
+        384,
+        384
+      ],
+      "readyMs": {
+        "technicalFoundation": 1955,
+        "phase1": 2028,
+        "candidate": 1956
+      },
+      "structure": {
+        "viewBox": "0 0 384 384",
+        "paths": 10,
+        "subpaths": 1108,
+        "groupedPathCounts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "fills": [
+          "#010102",
+          "#2d455e",
+          "#45596e",
+          "#5f6c79",
+          "#778089",
+          "#9298a1",
+          "#a59182",
+          "#afaeb1",
+          "#c8c9ce",
+          "#e9e8eb"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          384,
+          384
+        ],
+        "rasterSample": [
+          350,
+          350
+        ],
+        "rasterHash": "63e9fbdc3638b019e3c95f02fdff7a0edeb43cc15ba6b6dfb7630e0327aeef21",
+        "inkBounds": [
+          0,
+          0,
+          349,
+          349
+        ],
+        "nonzeroAlpha": {
+          "source": 122500,
+          "result": 116830,
+          "translucentResult": 30765
+        },
+        "alphaMAE": 35.834,
+        "compositedRGBMAE": 18.289,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "fine-lettering",
+      "sourceSize": [
+        230,
+        78
+      ],
+      "sourceSha256": "92dee85235aec02f548c86494eceb0ffb4c20c768c1ca4bbcc196470a04c1b57",
+      "sourceBytes": 3777,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 22594,
+      "downloadSha256": "7d478be76032f589718989f7b2b928977d5c18f1bd355978bc2c1640e52e7379",
+      "previewMarkupSha256": "7d478be76032f589718989f7b2b928977d5c18f1bd355978bc2c1640e52e7379",
+      "browserPreviewPngSha256": "0f17608baab7d1504437720eb5893d16208424093c21c57a2e93ebe025bffa15",
+      "browserPreviewDimensions": [
+        230,
+        78
+      ],
+      "readyMs": {
+        "technicalFoundation": 306,
+        "phase1": 306,
+        "candidate": 333
+      },
+      "structure": {
+        "viewBox": "0 0 230 78",
+        "paths": 1,
+        "subpaths": 38,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          230,
+          78
+        ],
+        "rasterSample": [
+          230,
+          78
+        ],
+        "rasterHash": "6f701ff1784df51489c311b5b7f0009de84aa6a43d64450b21b0eb5bfb8b0475",
+        "inkBounds": [
+          12,
+          16,
+          139,
+          65
+        ],
+        "nonzeroAlpha": {
+          "source": 17940,
+          "result": 1907,
+          "translucentResult": 1203
+        },
+        "alphaMAE": 235.715,
+        "compositedRGBMAE": 8.527,
+        "inkRegions": [
+          {
+            "region": [
+              10,
+              10,
+              170,
+              34
+            ],
+            "source": 710,
+            "result": 823
+          },
+          {
+            "region": [
+              10,
+              36,
+              170,
+              52
+            ],
+            "source": 488,
+            "result": 585
+          },
+          {
+            "region": [
+              10,
+              52,
+              170,
+              67
+            ],
+            "source": 350,
+            "result": 415
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "thin-lines",
+      "sourceSize": [
+        240,
+        150
+      ],
+      "sourceSha256": "425f1aa5b8f797433830c299636af62659617a83182ce45fbcc44192f2b870e5",
+      "sourceBytes": 634,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 1579,
+      "downloadSha256": "98cdd79fb7142a0c8986fb014f1615e57e482327d1343579db4b8dd4b826af52",
+      "previewMarkupSha256": "98cdd79fb7142a0c8986fb014f1615e57e482327d1343579db4b8dd4b826af52",
+      "browserPreviewPngSha256": "5e64474ff23a9c670398e12411733219afeb5e49d93510fb333a8ab161c29d6b",
+      "browserPreviewDimensions": [
+        240,
+        150
+      ],
+      "readyMs": {
+        "technicalFoundation": 1442,
+        "phase1": 1450,
+        "candidate": 1450
+      },
+      "structure": {
+        "viewBox": "0 0 240 150",
+        "paths": 1,
+        "subpaths": 6,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          240,
+          150
+        ],
+        "rasterSample": [
+          240,
+          150
+        ],
+        "rasterHash": "2166013f3fc76ba90e813c7a26240eac87431cab64e9211e6999c9ca5948ab34",
+        "inkBounds": [
+          10,
+          14,
+          219,
+          126
+        ],
+        "nonzeroAlpha": {
+          "source": 36000,
+          "result": 3352,
+          "translucentResult": 1692
+        },
+        "alphaMAE": 234.103,
+        "compositedRGBMAE": 7.659,
+        "inkRegions": [
+          {
+            "region": [
+              7,
+              11,
+              224,
+              19
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              33,
+              224,
+              41
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              55,
+              224,
+              63
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              77,
+              224,
+              85
+            ],
+            "source": 420,
+            "result": 420
+          },
+          {
+            "region": [
+              7,
+              99,
+              224,
+              107
+            ],
+            "source": 840,
+            "result": 836
+          },
+          {
+            "region": [
+              7,
+              121,
+              224,
+              129
+            ],
+            "source": 840,
+            "result": 836
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "pale-text",
+      "sourceSize": [
+        230,
+        78
+      ],
+      "sourceSha256": "66d1dafa3460f3eba3a97647d15d2affe994c2ffb4fda5d907be4c0494f90df4",
+      "sourceBytes": 2439,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 280,
+      "downloadSha256": "0a420799022ed1d8e22ddf788da3789f8a0bdfee76c96c5f4cfc0bc37313bc21",
+      "previewMarkupSha256": "0a420799022ed1d8e22ddf788da3789f8a0bdfee76c96c5f4cfc0bc37313bc21",
+      "browserPreviewPngSha256": "44b1c23653a1bbcce82bba07d2ff29381f4ce310d584b3af2f2678a1ee1c2425",
+      "browserPreviewDimensions": [
+        230,
+        78
+      ],
+      "readyMs": {
+        "technicalFoundation": 334,
+        "phase1": 304,
+        "candidate": 362
+      },
+      "structure": {
+        "viewBox": "0 0 230 78",
+        "paths": 1,
+        "subpaths": 1,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          230,
+          78
+        ],
+        "rasterSample": [
+          230,
+          78
+        ],
+        "rasterHash": "bb216b1ebdcf2e1ececcd1eff84dce12bc502cb2308e3c3ff929202282cfc1df",
+        "inkBounds": [
+          178,
+          12,
+          205,
+          24
+        ],
+        "nonzeroAlpha": {
+          "source": 17940,
+          "result": 364,
+          "translucentResult": 0
+        },
+        "alphaMAE": 249.826,
+        "compositedRGBMAE": 2.094,
+        "inkRegions": [
+          {
+            "region": [
+              10,
+              10,
+              170,
+              34
+            ],
+            "source": 552,
+            "result": 0
+          },
+          {
+            "region": [
+              10,
+              36,
+              170,
+              52
+            ],
+            "source": 293,
+            "result": 0
+          },
+          {
+            "region": [
+              10,
+              52,
+              170,
+              67
+            ],
+            "source": 217,
+            "result": 0
+          }
+        ]
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "complex-background",
+      "sourceSize": [
+        310,
+        226
+      ],
+      "sourceSha256": "7803fd00ea3c51f14ca478891e1ac27fd1d3475776156481d49aaa2e4bef5283",
+      "sourceBytes": 33086,
+      "preset": "Layered - Flat Color",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "layered-flat-color",
+      "downloadBytes": 17855,
+      "downloadSha256": "04229ba54597b7762b338ce07cf0edd8ebc9b607912db19c07ff05df6835da66",
+      "previewMarkupSha256": "04229ba54597b7762b338ce07cf0edd8ebc9b607912db19c07ff05df6835da66",
+      "browserPreviewPngSha256": "3eb488757da14179e5aea93b63ef1ff0564280322b697044e9d15ea7a227848a",
+      "browserPreviewDimensions": [
+        310,
+        226
+      ],
+      "readyMs": {
+        "technicalFoundation": 1941,
+        "phase1": 2057,
+        "candidate": 1986
+      },
+      "structure": {
+        "viewBox": "0 0 310 226",
+        "paths": 10,
+        "subpaths": 209,
+        "groupedPathCounts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "fills": [
+          "#053952",
+          "#111521",
+          "#1792a2",
+          "#2ce7ab",
+          "#603563",
+          "#a661cb",
+          "#eab82a",
+          "#ed6464",
+          "#f3f4ff",
+          "#ffe1a3"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          310,
+          226
+        ],
+        "rasterSample": [
+          310,
+          226
+        ],
+        "rasterHash": "17b89056d21f3e088182c19c315c184bfda6da615c5609f622cd8ca8985ad67d",
+        "inkBounds": [
+          0,
+          0,
+          309,
+          225
+        ],
+        "nonzeroAlpha": {
+          "source": 70060,
+          "result": 68729,
+          "translucentResult": 11841
+        },
+        "alphaMAE": 23.186,
+        "compositedRGBMAE": 10.471,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "layered-artwork",
+      "sourceSize": [
+        245,
+        204
+      ],
+      "sourceSha256": "28dc4de0155a9e72ce2231a7c75034bf646bb0a1856ac8ad0c870a763fdf607a",
+      "sourceBytes": 5388,
+      "preset": "Filled Layers - Separate Colors",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "filled-layers-separate-colors",
+      "downloadBytes": 3089,
+      "downloadSha256": "7685640dca3c9e8b6f69ac989f44344f9048d9b81f1e4ac8a8377550da9d360b",
+      "previewMarkupSha256": "7685640dca3c9e8b6f69ac989f44344f9048d9b81f1e4ac8a8377550da9d360b",
+      "browserPreviewPngSha256": "060ffcfb42570ed3713c8ff51b0326b6430945713503473f4ca829c4b7584628",
+      "browserPreviewDimensions": [
+        245,
+        204
+      ],
+      "readyMs": {
+        "technicalFoundation": 1225,
+        "phase1": 449,
+        "candidate": 458
+      },
+      "structure": {
+        "viewBox": "0 0 245 204",
+        "paths": 9,
+        "subpaths": 21,
+        "groupedPathCounts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "fills": [
+          "#1357ad",
+          "#232134",
+          "#2b2b44",
+          "#61383a",
+          "#b64e42",
+          "#cb4c34",
+          "#db4a28",
+          "#e74b22",
+          "#f4c849"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          245,
+          204
+        ],
+        "rasterSample": [
+          245,
+          204
+        ],
+        "rasterHash": "c9cf355e7f0a39836059d1b6aaab51ac3aa2bbd3169418524f8afa5452c2095f",
+        "inkBounds": [
+          24,
+          20,
+          244,
+          180
+        ],
+        "nonzeroAlpha": {
+          "source": 27952,
+          "result": 28118,
+          "translucentResult": 1634
+        },
+        "alphaMAE": 8.784,
+        "compositedRGBMAE": 5.08,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "large-input",
+      "sourceSize": [
+        4800,
+        3400
+      ],
+      "sourceSha256": "c15c98849164a07e80fefe464491fa506cfe0bbf989a8223223354845f8254e5",
+      "sourceBytes": 275212,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 5901,
+      "downloadSha256": "3e8e20b06fcc5d87d0cbdd5bb9788bdcb5555f25738516ce684a68e44b3de9da",
+      "previewMarkupSha256": "3e8e20b06fcc5d87d0cbdd5bb9788bdcb5555f25738516ce684a68e44b3de9da",
+      "browserPreviewPngSha256": "82f211ce730023e0fc18a7c0c336eed27ebd229af357df8c0315964eb202d20e",
+      "browserPreviewDimensions": [
+        684,
+        484
+      ],
+      "readyMs": {
+        "technicalFoundation": 2599,
+        "phase1": 2644,
+        "candidate": 2095
+      },
+      "structure": {
+        "viewBox": "0 0 3000 2125",
+        "paths": 1,
+        "subpaths": 2,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          3000,
+          2125
+        ],
+        "rasterSample": [
+          350,
+          248
+        ],
+        "rasterHash": "10d59ec790a356b87870dc107c93ae3dc2d02d665e81845ed7e5e15d141135c4",
+        "inkBounds": [
+          11,
+          19,
+          337,
+          235
+        ],
+        "nonzeroAlpha": {
+          "source": 86800,
+          "result": 36348,
+          "translucentResult": 2214
+        },
+        "alphaMAE": 151.41,
+        "compositedRGBMAE": 46.135,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 0,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    },
+    {
+      "browser": "webkit",
+      "version": "26.4",
+      "input": "small-input",
+      "sourceSize": [
+        8,
+        8
+      ],
+      "sourceSha256": "aa77920651ada2155d1de57c2f804dc82639a9b63a7ca791bcdef90ddbf21889",
+      "sourceBytes": 104,
+      "preset": "route default",
+      "engine": "potrace",
+      "posts": 1,
+      "serverPreset": "line-accurate",
+      "downloadBytes": 460,
+      "downloadSha256": "c0a1864b9adade18e1976041f49641889fdc16d977079708dd1e914b96366a47",
+      "previewMarkupSha256": "c0a1864b9adade18e1976041f49641889fdc16d977079708dd1e914b96366a47",
+      "browserPreviewPngSha256": "b30728db5a9a810de71d542e74cfe8a02050a4033176418ddd80d737defc282b",
+      "browserPreviewDimensions": [
+        8,
+        8
+      ],
+      "readyMs": {
+        "technicalFoundation": 1480,
+        "phase1": 1459,
+        "candidate": 1604
+      },
+      "structure": {
+        "viewBox": "0 0 8 8",
+        "paths": 1,
+        "subpaths": 1,
+        "groupedPathCounts": [],
+        "fills": [
+          "#000000"
+        ],
+        "opacities": []
+      },
+      "render": {
+        "intrinsicSize": [
+          8,
+          8
+        ],
+        "rasterSample": [
+          8,
+          8
+        ],
+        "rasterHash": "e0d1a41385307098787c874144287572a6875f8f6bfd11f59806c641553762f1",
+        "inkBounds": [
+          1,
+          1,
+          6,
+          6
+        ],
+        "nonzeroAlpha": {
+          "source": 64,
+          "result": 35,
+          "translucentResult": 20
+        },
+        "alphaMAE": 134.078,
+        "compositedRGBMAE": 16.547,
+        "inkRegions": []
+      },
+      "resources": {
+        "beforeExit": {
+          "liveWorkers": 0,
+          "liveURLs": 2,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        },
+        "afterExit": {
+          "liveWorkers": 0,
+          "liveURLs": 0,
+          "workersCreated": 0,
+          "urlsCreated": 3,
+          "decodedBitmaps": 1,
+          "liveBitmaps": 0
+        }
+      },
+      "baselineBytePixelStructureEngineParity": true
+    }
+  ],
+  "probes": {
+    "chromium": {
+      "pngBefore": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 2,
+          "errors": [],
+          "passed": false,
+          "failure": "invalidated source must never create a card\n+ actual - expected\n\n+ [\n+   'succeeded'\n+ ]\n- []"
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 2,
+          "statuses": [
+            "succeeded",
+            "succeeded"
+          ],
+          "sourceURLs": 4,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "errors": [],
+          "passed": false,
+          "failure": "only the replacement may create a result\n\n2 !== 1\n"
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 2,
+          "errors": [],
+          "passed": false,
+          "failure": "invalidated source must never allocate another preview snapshot\n\n2 !== 1\n"
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "pngAfter": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 3,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "home": [
+        {
+          "name": "remove-during-measurement",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "replace-during-measurement",
+          "passed": true,
+          "posts": 1
+        },
+        {
+          "name": "navigate-during-measurement",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "remove-during-convert-validation",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "replace-during-fingerprinting",
+          "passed": true,
+          "posts": 1
+        },
+        {
+          "name": "replacement-uses-its-own-dimensions",
+          "passed": true,
+          "posts": 1
+        }
+      ],
+      "historyAfter": [
+        {
+          "route": "/",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        }
+      ],
+      "paste": [
+        {
+          "route": "/",
+          "width": 1440,
+          "browser": "chromium",
+          "mobileEmulation": false,
+          "svgBytes": 270,
+          "sha256": "26f01b39cca005d4b723faea0eb79d154cf1bea70475e3ae9b884536735d792a",
+          "baselineByteParity": true,
+          "sameNameReplacement": true,
+          "posts": 2
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "width": 390,
+          "browser": "chromium",
+          "mobileEmulation": true,
+          "svgBytes": 270,
+          "sha256": "26f01b39cca005d4b723faea0eb79d154cf1bea70475e3ae9b884536735d792a",
+          "baselineByteParity": true,
+          "sameNameReplacement": true,
+          "posts": 2
+        }
+      ]
+    },
+    "webkit": {
+      "pngBefore": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 2,
+          "errors": [],
+          "passed": false,
+          "failure": "invalidated source must never create a card\n+ actual - expected\n\n+ [\n+   'succeeded'\n+ ]\n- []"
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 2,
+          "statuses": [
+            "succeeded",
+            "succeeded"
+          ],
+          "sourceURLs": 4,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "errors": [],
+          "passed": false,
+          "failure": "only the replacement may create a result\n\n2 !== 1\n"
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 2,
+          "errors": [],
+          "passed": false,
+          "failure": "invalidated source must never allocate another preview snapshot\n\n2 !== 1\n"
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "pngAfter": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 3,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "home": [
+        {
+          "name": "remove-during-measurement",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "replace-during-measurement",
+          "passed": true,
+          "posts": 1
+        },
+        {
+          "name": "navigate-during-measurement",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "remove-during-convert-validation",
+          "passed": true,
+          "posts": 0
+        },
+        {
+          "name": "replace-during-fingerprinting",
+          "passed": true,
+          "posts": 1
+        },
+        {
+          "name": "replacement-uses-its-own-dimensions",
+          "passed": true,
+          "posts": 1
+        }
+      ],
+      "historyAfter": [
+        {
+          "route": "/",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        }
+      ],
+      "paste": [
+        {
+          "route": "/",
+          "width": 1440,
+          "browser": "webkit",
+          "mobileEmulation": false,
+          "svgBytes": 270,
+          "sha256": "26f01b39cca005d4b723faea0eb79d154cf1bea70475e3ae9b884536735d792a",
+          "baselineByteParity": true,
+          "sameNameReplacement": true,
+          "posts": 2
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "width": 390,
+          "browser": "webkit",
+          "mobileEmulation": true,
+          "svgBytes": 270,
+          "sha256": "26f01b39cca005d4b723faea0eb79d154cf1bea70475e3ae9b884536735d792a",
+          "baselineByteParity": true,
+          "sameNameReplacement": true,
+          "posts": 2
+        }
+      ]
+    }
+  },
+  "historyBeforeChromium": [
+    {
+      "route": "/",
+      "original": {
+        "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+        "dimensions": [
+          160,
+          120
+        ]
+      },
+      "replacement": {
+        "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+        "dimensions": [
+          96,
+          72
+        ]
+      },
+      "after": {
+        "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+        "dimensions": [
+          96,
+          72
+        ]
+      },
+      "additionalPosts": 0,
+      "errors": [],
+      "passed": false
+    },
+    {
+      "route": "/png-to-svg-converter",
+      "original": {
+        "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+        "dimensions": [
+          160,
+          120
+        ]
+      },
+      "replacement": {
+        "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+        "dimensions": [
+          96,
+          72
+        ]
+      },
+      "after": {
+        "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+        "dimensions": [
+          96,
+          72
+        ]
+      },
+      "additionalPosts": 0,
+      "errors": [],
+      "passed": false
+    }
+  ],
+  "fallbackAfter": [
+    {
+      "browser": "chromium",
+      "mobileEmulation": false,
+      "scenario": "replace-same-name",
+      "workerCapabilityShim": false,
+      "posts": 2,
+      "downloadSha256": "e1741e82d7769d96a3c854fc0c4bc91b6bbcce9c62590ae948e881a108dc996c",
+      "screenshot": "tmp\\phase3\\conversion-fallback-final\\chromium-desktop-replace-same-name.png",
+      "status": "PASS"
+    },
+    {
+      "browser": "chromium",
+      "mobileEmulation": false,
+      "scenario": "join-cancel-producer",
+      "workerCapabilityShim": false,
+      "posts": 1,
+      "screenshot": "tmp\\phase3\\conversion-fallback-final\\chromium-desktop-join-cancel-producer.png",
+      "status": "PASS"
+    },
+    {
+      "browser": "webkit",
+      "mobileEmulation": false,
+      "scenario": "replace-same-name",
+      "workerCapabilityShim": false,
+      "posts": 2,
+      "downloadSha256": "e1741e82d7769d96a3c854fc0c4bc91b6bbcce9c62590ae948e881a108dc996c",
+      "screenshot": "tmp\\phase3\\conversion-fallback-final\\webkit-desktop-replace-same-name.png",
+      "status": "PASS"
+    },
+    {
+      "browser": "webkit",
+      "mobileEmulation": false,
+      "scenario": "join-cancel-producer",
+      "workerCapabilityShim": true,
+      "posts": 1,
+      "screenshot": "tmp\\phase3\\conversion-fallback-final\\webkit-desktop-join-cancel-producer.png",
+      "status": "PASS"
+    }
+  ],
+  "mobileOrderAfter": [
+    {
+      "browser": "chromium",
+      "route": "/",
+      "width": 320,
+      "geometry": {
+        "input": {
+          "top": 65,
+          "bottom": 576.609375,
+          "height": 511.609375,
+          "visible": true
+        },
+        "output": {
+          "top": 597.609375,
+          "bottom": 1097.609375,
+          "height": 500,
+          "visible": true
+        },
+        "original": {
+          "top": 1118.609375,
+          "bottom": 1394.109375,
+          "height": 275.5,
+          "visible": true
+        },
+        "overflow": 0
+      }
+    },
+    {
+      "browser": "chromium",
+      "route": "/png-to-svg-converter",
+      "width": 390,
+      "geometry": {
+        "input": {
+          "top": 65,
+          "bottom": 565.890625,
+          "height": 500.890625,
+          "visible": true
+        },
+        "output": {
+          "top": 586.890625,
+          "bottom": 1102.890625,
+          "height": 516,
+          "visible": true
+        },
+        "original": {
+          "top": 1123.890625,
+          "bottom": 1435.390625,
+          "height": 311.5,
+          "visible": true
+        },
+        "overflow": 0
+      }
+    },
+    {
+      "browser": "webkit",
+      "route": "/",
+      "width": 320,
+      "geometry": {
+        "input": {
+          "top": 64.984375,
+          "bottom": 605.984375,
+          "height": 541,
+          "visible": true
+        },
+        "output": {
+          "top": 626.984375,
+          "bottom": 1126.984375,
+          "height": 500,
+          "visible": true
+        },
+        "original": {
+          "top": 1147.984375,
+          "bottom": 1423.484375,
+          "height": 275.5,
+          "visible": true
+        },
+        "overflow": 0
+      }
+    },
+    {
+      "browser": "webkit",
+      "route": "/png-to-svg-converter",
+      "width": 390,
+      "geometry": {
+        "input": {
+          "top": 64.984375,
+          "bottom": 635.875,
+          "height": 570.890625,
+          "visible": true
+        },
+        "output": {
+          "top": 656.875,
+          "bottom": 1172.875,
+          "height": 516,
+          "visible": true
+        },
+        "original": {
+          "top": 1193.875,
+          "bottom": 1505.375,
+          "height": 311.5,
+          "visible": true
+        },
+        "overflow": 0
+      }
+    }
+  ],
+  "navigationDuringTrace": [
+    {
+      "browser": "chromium",
+      "route": "/",
+      "stage": "worker",
+      "posts": 0,
+      "shim": false,
+      "passed": true
+    },
+    {
+      "browser": "chromium",
+      "route": "/",
+      "stage": "fallback",
+      "posts": 1,
+      "shim": false,
+      "passed": true
+    },
+    {
+      "browser": "chromium",
+      "route": "/png-to-svg-converter",
+      "stage": "worker",
+      "posts": 0,
+      "shim": false,
+      "passed": true
+    },
+    {
+      "browser": "chromium",
+      "route": "/png-to-svg-converter",
+      "stage": "fallback",
+      "posts": 1,
+      "shim": false,
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "route": "/",
+      "stage": "worker",
+      "posts": 0,
+      "shim": true,
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "route": "/",
+      "stage": "fallback",
+      "posts": 1,
+      "shim": true,
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "route": "/png-to-svg-converter",
+      "stage": "worker",
+      "posts": 0,
+      "shim": true,
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "route": "/png-to-svg-converter",
+      "stage": "fallback",
+      "posts": 1,
+      "shim": true,
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+import {chromium} from 'file:///C:/Users/Suhas/AppData/Local/npm-cache/_npx/b234c773f454f454/node_modules/playwright/index.mjs';
+import {readFile,readdir,writeFile} from 'node:fs/promises';
+import {gzipSync} from 'node:zlib';
+const builds=[['PR11','http://127.0.0.1:5300','tmp/phase3/pr11/build/client'],['PR12','http://127.0.0.1:5301','C:/Users/Suhas/.codex/worktrees/ilovesvg-phase1-20261112/tmp/phase1-review-final/build/client'],['corrected-integrated','http://127.0.0.1:5303','tmp/phase3/acceptance/build/client']];
+const report={note:'Local Chromium cold contexts, blocked third parties, no throttling. Shared workstation load; not field CWV, mobile hardware, production or latency guarantee. Inventory sums are whole-build, not per-page transfer.',bundles:[],loads:[]};
+for(const [label,,directory]of builds){const files=await readdir(directory+'/assets');const assets=await Promise.all(files.filter(f=>/\.(js|css)$/.test(f)).map(async name=>{const b=await readFile(directory+'/assets/'+name);return{name,bytes:b.length,gzip:gzipSync(b).length};}));report.bundles.push({label,raw:assets.reduce((s,a)=>s+a.bytes,0),gzip:assets.reduce((s,a)=>s+a.gzip,0),routes:assets.filter(a=>/^(home|png-to-svg-converter|how-it-works.exporting|author.suhas|svg-sprite|svg-background)/.test(a.name))});}
+const browser=await chromium.launch();
+for(const [label,base]of builds)for(const path of ['/','/how-it-works/exporting-and-downloads','/png-to-svg-for-cricut','/svg-background-editor'])for(let run=0;run<3;run++){
+ const context=await browser.newContext({viewport:{width:390,height:844}});await context.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());
+ const page=await context.newPage();await page.addInitScript(()=>{window.__performanceProbe={cls:0,longTasks:[],lcp:0};new PerformanceObserver(list=>{for(const e of list.getEntries())if(!e.hadRecentInput)window.__performanceProbe.cls+=e.value;}).observe({type:'layout-shift',buffered:true});new PerformanceObserver(list=>{window.__performanceProbe.longTasks.push(...list.getEntries().map(e=>e.duration));}).observe({type:'longtask',buffered:true});new PerformanceObserver(list=>{for(const e of list.getEntries())window.__performanceProbe.lcp=e.startTime;}).observe({type:'largest-contentful-paint',buffered:true});});
+ await page.goto(base+path,{waitUntil:'networkidle'});await page.waitForFunction(()=>!!window.__reactRouterDataRouter);await page.waitForTimeout(300);
+ const sample=await page.evaluate(()=>{const nav=performance.getEntriesByType('navigation')[0],resources=performance.getEntriesByType('resource').filter(r=>r.name.startsWith(location.origin));return{...window.__performanceProbe,domContentLoadedMs:nav.domContentLoadedEventEnd,loadMs:nav.loadEventEnd,documentBytes:nav.decodedBodySize,transferBytes:nav.transferSize+resources.reduce((s,r)=>s+r.transferSize,0),requests:resources.length,heapUsed:performance.memory?.usedJSHeapSize||null};});
+ report.loads.push({label,path,run,...sample});await context.close();
+}
+await browser.close();await writeFile('ai-issues/phase3/performance-results.json',JSON.stringify(report,null,2));
+console.log(JSON.stringify({bundles:report.bundles.map(({label,raw,gzip})=>({label,raw,gzip})),samples:report.loads.length,maxCls:Math.max(...report.loads.map(r=>r.cls)),longTasks:report.loads.reduce((s,r)=>s+r.longTasks.length,0)}));

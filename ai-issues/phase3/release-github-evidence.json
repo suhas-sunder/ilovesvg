@@ -1,0 +1,739 @@
+{
+  "observedAtUtc": "2026-11-14T03:33:41.5790545Z",
+  "main": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+  "pullRequests": [
+    {
+      "number": 10,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "main",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "headRef": "codex/run4-seo-draft-setup",
+      "head": "5c8dcd49f5b5d081d27054a670777c009d8b3802",
+      "files": 8,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "boundary",
+          "conclusion": "success",
+          "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/42557677004/job/128966932794"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 11,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "main",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "headRef": "release/2026-W46-ilovesvg-consolidated",
+      "head": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "files": 58,
+      "commits": 13,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/42558626756/job/128969872740"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 12,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "release/2026-W46-ilovesvg-consolidated",
+      "base": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "headRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "head": "78dda78994ea90e7b3a839725021bc316463434e",
+      "files": 35,
+      "commits": 6,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/43440813136/job/131937620668"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 13,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "main",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "headRef": "codex/phase2-foundation-ci",
+      "head": "abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f",
+      "files": 241,
+      "commits": 32,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/43551434747/job/132314551603"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 14,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "base": "78dda78994ea90e7b3a839725021bc316463434e",
+      "headRef": "codex/phase2-route-smoke-prerequisite",
+      "head": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "files": 1,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 15,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/phase2-route-smoke-prerequisite",
+      "base": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "headRef": "codex/seo/phase2-maintainer",
+      "head": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "files": 15,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 16,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-maintainer",
+      "base": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "headRef": "codex/seo/phase2-mobile-recovery",
+      "head": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "files": 7,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 17,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-mobile-recovery",
+      "base": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "headRef": "codex/phase2-docs-assets-prerequisite",
+      "head": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "files": 1,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 18,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/phase2-docs-assets-prerequisite",
+      "base": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "headRef": "codex/seo/phase2-output-examples",
+      "head": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "files": 28,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 19,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-output-examples",
+      "base": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "headRef": "codex/seo/phase2-craft-guidance",
+      "head": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "files": 27,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 20,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-craft-guidance",
+      "base": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "headRef": "codex/seo/phase2-background-guidance",
+      "head": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "files": 24,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 21,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-background-guidance",
+      "base": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "headRef": "codex/seo/phase2-sprite-utility",
+      "head": "40856446cf75a0a58070b72bf218002789bad48d",
+      "files": 25,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/43532158019/job/132252261464"
+        },
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 22,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-sprite-utility",
+      "base": "40856446cf75a0a58070b72bf218002789bad48d",
+      "headRef": "codex/phase2-handoff",
+      "head": "71050b16805e9909171bcb0074d1209cf090df24",
+      "files": 23,
+      "commits": 2,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 23,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "base": "78dda78994ea90e7b3a839725021bc316463434e",
+      "headRef": "codex/phase3-ui-corrections",
+      "head": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+      "files": 11,
+      "commits": 2,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 24,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/seo/phase2-sprite-utility",
+      "base": "40856446cf75a0a58070b72bf218002789bad48d",
+      "headRef": "codex/phase3-sprite-correction",
+      "head": "7cc86a817cf15a0cd8e8960cc7af306d71a39709",
+      "files": 2,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 25,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/run4-seo-draft-setup",
+      "base": "5c8dcd49f5b5d081d27054a670777c009d8b3802",
+      "headRef": "codex/phase3-pr10-gates",
+      "head": "c4356cf5308fe6ab7cc1944bbfe5ba13ceb2e5ce",
+      "files": 6,
+      "commits": 1,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    },
+    {
+      "number": 26,
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "mergeable": true,
+      "mergeableState": "clean",
+      "baseRef": "codex/phase2-docs-assets-prerequisite",
+      "base": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "headRef": "codex/phase3-pr17-public-containment",
+      "head": "2a3e9df4d83dd32014d14dd7a00337750e682568",
+      "files": 2,
+      "commits": 2,
+      "comments": 0,
+      "reviews": 0,
+      "reviewDecision": null,
+      "unresolvedThreads": 0,
+      "headChecks": [
+        {
+          "name": "GitGuardian Security Checks",
+          "conclusion": "success",
+          "url": "https://dashboard.gitguardian.com"
+        }
+      ],
+      "reviewThreadCount": 0
+    }
+  ],
+  "workflowRuns": [
+    {
+      "id": 42557677004,
+      "head": "5c8dcd49f5b5d081d27054a670777c009d8b3802",
+      "workflow": "Staged content boundary",
+      "workflowPath": ".github/workflows/content-release-boundary.yml",
+      "event": "pull_request",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 128966932794,
+          "name": "boundary",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run node scripts/weekly-seo-pipeline-test.mjs",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "Keep unapproved draft URLs out of production",
+              "conclusion": "skipped"
+            },
+            {
+              "name": "Bootstrap first installation without production writes",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 42558626756,
+      "head": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "workflow": "Technical reliability release validation",
+      "workflowPath": ".github/workflows/reliability-release.yml",
+      "event": "pull_request",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 128969872740,
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build and test in the repository-declared runtime",
+              "conclusion": "success"
+            },
+            {
+              "name": "Check source whitespace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "dockerBaseImage": "docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+      "dockerBaseImageScope": "CI base image only; production service revision and image are unverified",
+      "jobLogsVerified": true
+    },
+    {
+      "id": 43440813136,
+      "head": "78dda78994ea90e7b3a839725021bc316463434e",
+      "workflow": "Technical reliability release validation",
+      "workflowPath": ".github/workflows/reliability-release.yml",
+      "event": "pull_request",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 131937620668,
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build and test in the repository-declared runtime",
+              "conclusion": "success"
+            },
+            {
+              "name": "Check source whitespace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "dockerBaseImage": "docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+      "dockerBaseImageScope": "CI base image only; production service revision and image are unverified",
+      "jobLogsVerified": true
+    },
+    {
+      "id": 43532158019,
+      "head": "40856446cf75a0a58070b72bf218002789bad48d",
+      "workflow": "Technical reliability release validation",
+      "workflowPath": ".github/workflows/reliability-release.yml",
+      "event": "pull_request",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132252261464,
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build and test in the repository-declared runtime",
+              "conclusion": "success"
+            },
+            {
+              "name": "Check source whitespace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "dockerBaseImage": "docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+      "dockerBaseImageScope": "CI base image only; production service revision and image are unverified",
+      "jobLogsVerified": true
+    },
+    {
+      "id": 43551434747,
+      "head": "abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f",
+      "workflow": "Technical reliability release validation",
+      "workflowPath": ".github/workflows/reliability-release.yml",
+      "event": "pull_request",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132314551603,
+          "name": "node20-alpine",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build and test in the repository-declared runtime",
+              "conclusion": "success"
+            },
+            {
+              "name": "Check source whitespace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "dockerBaseImage": "docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+      "dockerBaseImageScope": "CI base image only; production service revision and image are unverified",
+      "jobLogsVerified": true
+    }
+  ],
+  "deploymentObservations": {
+    "githubHooks": 0,
+    "githubDeploymentRecords": 0,
+    "githubEnvironments": [
+      "copilot"
+    ],
+    "githubWorkflows": [
+      "Staged content boundary",
+      "Technical reliability release validation",
+      "Copilot cloud agent"
+    ],
+    "mainTreeWorkflowCount": 0,
+    "actionsEnabled": true,
+    "actionsDefaultPermissions": "read",
+    "actionsCanCreateAndApprovePullRequests": false,
+    "seoOptInVariableHttpStatus": 404,
+    "branchProtectionHttpStatus": 404,
+    "activeMainRules": 0,
+    "externalPollingKnown": false,
+    "productionRevisionVerified": false,
+    "runtimeRollbackVerified": false,
+    "githubPagesEnabled": false,
+    "githubMainPushWorkflowRuns": 0,
+    "githubAutoMergeEnabled": false,
+    "githubMergeCommitsAllowed": true,
+    "externalGitHubInstallationsEnumerated": false
+  }
+}

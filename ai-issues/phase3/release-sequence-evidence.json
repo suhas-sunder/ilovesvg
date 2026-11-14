@@ -1,0 +1,880 @@
+{
+  "kind": "proposal evidence only; operational queue stays in ai-issues/seo/release-queue.json and release-history.json",
+  "node": "v20.20.2",
+  "queueSnapshot": "71050b16805e9909171bcb0074d1209cf090df24",
+  "mainSnapshot": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+  "complete": true,
+  "originalHeadsOnly": true,
+  "records": [
+    {
+      "releaseIdentifier": "01",
+      "queueId": "PR11",
+      "packageTitle": "Raster recovery and batch cancellation",
+      "prNumber": 11,
+      "sourceBranch": "release/2026-W46-ilovesvg-consolidated",
+      "reviewedHeadSha": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "expectedBaseSha": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "actualPredecessor": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "dependencies": [],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "changedFileAllowlist": [
+        ".dockerignore",
+        ".github/workflows/reliability-release.yml",
+        "ai-issues/reliability/2026-11-08-baseline.md",
+        "ai-issues/reliability/2026-11-08-family-audit.md",
+        "ai-issues/reliability/2026-11-08-hybrid-fallback.md",
+        "ai-issues/reliability/2026-11-08-output-parity-harness.md",
+        "ai-issues/reliability/2026-11-08-pipeline-and-server.md",
+        "ai-issues/reliability/2026-11-08-raster-preparation.md",
+        "ai-issues/reliability/run2-apng-assessment.md",
+        "ai-issues/reliability/run2-operator-runbook.md",
+        "ai-issues/reliability/run2-release-browser-and-runtime.md",
+        "ai-issues/reliability/run2-review.md",
+        "ai-issues/reliability/run2-runtime.md",
+        "ai-issues/reliability/run3-batch-lifecycle.md",
+        "ai-issues/reliability/run4-batch-release-review.md",
+        "app/client/lib/converter/inFlightConversionDedupe.ts",
+        "app/client/lib/converter/prepareRasterUpload.ts",
+        "app/client/lib/converter/sourceFingerprint.ts",
+        "app/client/lib/tracing/useHybridTraceFetcher.ts",
+        "app/client/lib/tracing/vtracerWorkerClient.ts",
+        "app/routes/home.tsx",
+        "app/routes/image-to-svg-outline.tsx",
+        "app/routes/jpeg-to-svg-converter.tsx",
+        "app/routes/jpg-to-svg-converter.tsx",
+        "app/routes/logo-to-svg-converter.tsx",
+        "app/routes/photo-to-svg-outline.tsx",
+        "app/routes/png-to-svg-converter.tsx",
+        "app/routes/scan-to-svg-converter.tsx",
+        "app/routes/webp-to-svg-converter.tsx",
+        "app/utils/conversionGate.server.ts",
+        "app/utils/svgLayerTrace.server.ts",
+        "app/utils/vtracerRuntime.server.ts",
+        "package.json",
+        "scripts/apng-preparation-browser.mjs",
+        "scripts/batch-navigation-browser.mjs",
+        "scripts/conversion-cache-audit.mjs",
+        "scripts/conversion-gate-cancellation.mjs",
+        "scripts/hybrid-browser-smoke.mjs",
+        "scripts/hybrid-fallback-browser.mjs",
+        "scripts/hybrid-fallback-regression.mjs",
+        "scripts/input-compatibility-smoke.mjs",
+        "scripts/jpeg-active-result-remediation-audit.mjs",
+        "scripts/raster-upload-preparation-audit.mjs",
+        "scripts/raster-upload-preparation-browser.mjs",
+        "scripts/raster-upload-route-browser.mjs",
+        "scripts/register-typescript-test-loader.mjs",
+        "scripts/reliability-output-comparison.mjs",
+        "scripts/run2-format-probe-browser.mjs",
+        "scripts/run2-hybrid-adversarial.mjs",
+        "scripts/run2-hybrid-replacement-browser.mjs",
+        "scripts/run2-raster-metadata-regression.mjs",
+        "scripts/run2-worker-cancel-read.mjs",
+        "scripts/server-retry-regression.mjs",
+        "scripts/server-startup-collision-test.mjs",
+        "scripts/server-vtracer-runtime-test.mjs",
+        "scripts/specialized-trace-route-family-audit.mjs",
+        "scripts/typescript-test-loader.mjs",
+        "server.js"
+      ],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [],
+      "changedExistingIndexableRouteModules": [
+        "/",
+        "/image-to-svg-outline",
+        "/jpeg-to-svg-converter",
+        "/jpg-to-svg-converter",
+        "/logo-to-svg-converter",
+        "/photo-to-svg-outline",
+        "/png-to-svg-converter",
+        "/scan-to-svg-converter",
+        "/webp-to-svg-converter"
+      ],
+      "sourceIndexableCount": 125,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": 42558626756,
+      "requiredBrowserChecks": "Actual browser/server fallback, concurrent work limits, canceled batch, correct SVG and ZIP bytes",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "historicalReviewedRollbackReference": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "ownerApprovalState": "NO NEW PHASE 3 AUTHORIZATION",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Owner establishes main update behavior and verifies present runtime and rollback, separately resolves protected ad-policy handling and satisfies genuine ad-network verification before exact PR11 publication",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      }
+    },
+    {
+      "releaseIdentifier": "02",
+      "queueId": "PR12",
+      "packageTitle": "Conversion workflow and navigation polish",
+      "prNumber": 12,
+      "sourceBranch": "codex/ilovesvg-final-ui-ux-buildout",
+      "reviewedHeadSha": "78dda78994ea90e7b3a839725021bc316463434e",
+      "expectedBaseSha": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "actualPredecessor": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "dependencies": [
+        "PR11"
+      ],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "changedFileAllowlist": [
+        "AGENTS.md",
+        "ai-issues/PHASE1-STATUS.md",
+        "ai-issues/history/misplaced-ilovetimers-agent-guidance.txt",
+        "ai-issues/phase1-evidence/fullscreen-after.png",
+        "ai-issues/phase1-evidence/fullscreen-before.png",
+        "ai-issues/phase1-evidence/home-1920-after.png",
+        "ai-issues/phase1-evidence/home-1920-before.png",
+        "ai-issues/phase1-evidence/home-320-after.png",
+        "ai-issues/phase1-evidence/home-320-before.png",
+        "ai-issues/phase1-evidence/large-paste-confirmation.png",
+        "ai-issues/phase1-evidence/png-mobile-result.png",
+        "ai-issues/phase1-evidence/route-comparison.json",
+        "ai-issues/phase1-evidence/upload-ownership-chromium.json",
+        "ai-issues/phase1-evidence/upload-ownership-webkit.json",
+        "app/app.css",
+        "app/client/components/converter/BespokeTraceOutputPanel.tsx",
+        "app/client/components/converter/FullscreenOutputPreview.tsx",
+        "app/client/components/converter/PresetSelector.tsx",
+        "app/client/components/converter/TraceOutputPanel.tsx",
+        "app/client/components/navigation/NavBar.tsx",
+        "app/client/components/navigation/SiteFooter.tsx",
+        "app/client/components/navigation/SocialLinks.tsx",
+        "app/client/components/ui/DragArea.tsx",
+        "app/client/components/ui/ImagePastePrompt.tsx",
+        "app/routes/home.tsx",
+        "app/routes/png-to-svg-converter.tsx",
+        "app/routes/svg-cleaner.tsx",
+        "scripts/fullscreen-focus-browser.mjs",
+        "scripts/home-upload-ownership-browser.mjs",
+        "scripts/image-paste-browser.mjs",
+        "scripts/navigation-audit.mjs",
+        "scripts/navigation-browser-audit.mjs",
+        "scripts/phase1-accessibility-browser.mjs",
+        "scripts/preset-keyboard-browser.mjs",
+        "scripts/responsive-nav-example-audit.mjs"
+      ],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [],
+      "changedExistingIndexableRouteModules": [
+        "/",
+        "/png-to-svg-converter",
+        "/svg-cleaner"
+      ],
+      "sourceIndexableCount": 125,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": 43440813136,
+      "requiredBrowserChecks": "Paste confirmation and discard, replacement ownership, keyboard and modal flow, mobile result and download",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "historicalReviewedRollbackReference": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "ownerApprovalState": "NO NEW PHASE 3 AUTHORIZATION",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      }
+    },
+    {
+      "releaseIdentifier": "03",
+      "queueId": "SVG-SEO-MAINTAINER",
+      "packageTitle": "Identify the maintainer and responsibilities",
+      "prNumber": 15,
+      "sourceBranch": "codex/seo/phase2-maintainer",
+      "reviewedHeadSha": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "expectedBaseSha": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "actualPredecessor": "78dda78994ea90e7b3a839725021bc316463434e",
+      "dependencies": [
+        "PR11",
+        "PR12",
+        "PR14"
+      ],
+      "technicalPrerequisitePRs": [
+        14
+      ],
+      "prerequisiteFiles": [
+        "scripts/route-http-smoke.mjs"
+      ],
+      "newIndexableUrls": [
+        "/author/suhas-sunder"
+      ],
+      "modifiedExistingUrls": [],
+      "changedExistingIndexableRouteModules": [
+        "/sitemap"
+      ],
+      "sourceIndexableCount": 126,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": null,
+      "requiredBrowserChecks": "Profile, country-independent identity, footer round-trip and cold ad exclusion",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "78dda78994ea90e7b3a839725021bc316463434e",
+      "historicalReviewedRollbackReference": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    },
+    {
+      "releaseIdentifier": "04",
+      "queueId": "SVG-SEO-MOBILE-HELP",
+      "packageTitle": "Recover phone images safely after upload failure",
+      "prNumber": 16,
+      "sourceBranch": "codex/seo/phase2-mobile-recovery",
+      "reviewedHeadSha": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "expectedBaseSha": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "actualPredecessor": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "dependencies": [
+        "SVG-SEO-MAINTAINER"
+      ],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [
+        "/how-it-works/troubleshooting"
+      ],
+      "changedExistingIndexableRouteModules": [
+        "/how-it-works/troubleshooting",
+        "/png-to-svg-converter"
+      ],
+      "sourceIndexableCount": 126,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": null,
+      "requiredBrowserChecks": "Bad input, recovery fragment, corrected JPEG and actual SVG download in Chromium and WebKit",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "historicalReviewedRollbackReference": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    },
+    {
+      "releaseIdentifier": "05",
+      "queueId": "SVG-SEO-PATH-INSPECTION",
+      "packageTitle": "Inspect actual SVG paths and reproducible conversion tradeoffs",
+      "prNumber": 18,
+      "sourceBranch": "codex/seo/phase2-output-examples",
+      "reviewedHeadSha": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "expectedBaseSha": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "actualPredecessor": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "dependencies": [
+        "SVG-SEO-MOBILE-HELP",
+        "PR17"
+      ],
+      "technicalPrerequisitePRs": [
+        17
+      ],
+      "prerequisiteFiles": [
+        "scripts/docs-audit.mjs"
+      ],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [
+        "/how-it-works/exporting-and-downloads"
+      ],
+      "changedExistingIndexableRouteModules": [
+        "/how-it-works/exporting-and-downloads"
+      ],
+      "sourceIndexableCount": 126,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": null,
+      "requiredBrowserChecks": "Inspector workflow, six example pairs, file hashes and actual downloads in Chromium and WebKit",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "historicalReviewedRollbackReference": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    },
+    {
+      "releaseIdentifier": "06",
+      "queueId": "SVG-SEO-CRAFT-REVIEW",
+      "packageTitle": "Review cut geometry, holes, islands and export backgrounds",
+      "prNumber": 19,
+      "sourceBranch": "codex/seo/phase2-craft-guidance",
+      "reviewedHeadSha": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "expectedBaseSha": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "actualPredecessor": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "dependencies": [
+        "SVG-SEO-PATH-INSPECTION"
+      ],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [
+        "/png-to-svg-for-cricut"
+      ],
+      "changedExistingIndexableRouteModules": [
+        "/png-to-svg-for-cricut"
+      ],
+      "sourceIndexableCount": 126,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": null,
+      "requiredBrowserChecks": "Actual clean and recovered craft exports, with hole, island and bridge checks",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "historicalReviewedRollbackReference": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    },
+    {
+      "releaseIdentifier": "07",
+      "queueId": "SVG-SEO-BACKGROUND-HELP",
+      "packageTitle": "Distinguish preview backgrounds from exported SVG geometry",
+      "prNumber": 20,
+      "sourceBranch": "codex/seo/phase2-background-guidance",
+      "reviewedHeadSha": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "expectedBaseSha": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "actualPredecessor": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "dependencies": [
+        "SVG-SEO-CRAFT-REVIEW"
+      ],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "newIndexableUrls": [],
+      "modifiedExistingUrls": [
+        "/svg-background-editor"
+      ],
+      "changedExistingIndexableRouteModules": [
+        "/svg-background-editor"
+      ],
+      "sourceIndexableCount": 126,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": null,
+      "requiredBrowserChecks": "Background import, clear/replace, reopen and transparent/opaque export pixels",
+      "requiredSecurityChecks": "Existing input, cancellation, native memory and conversion-action gates; scoped new surface review",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "historicalReviewedRollbackReference": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    },
+    {
+      "releaseIdentifier": "08",
+      "queueId": "SVG-SEO-SPRITE-UTILITY",
+      "packageTitle": "Combine simple SVG icons into bounded reusable inline symbols",
+      "prNumber": 21,
+      "sourceBranch": "codex/seo/phase2-sprite-utility",
+      "reviewedHeadSha": "40856446cf75a0a58070b72bf218002789bad48d",
+      "expectedBaseSha": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "actualPredecessor": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "dependencies": [
+        "SVG-SEO-BACKGROUND-HELP"
+      ],
+      "technicalPrerequisitePRs": [],
+      "prerequisiteFiles": [],
+      "newIndexableUrls": [
+        "/svg-sprite-generator"
+      ],
+      "modifiedExistingUrls": [],
+      "changedExistingIndexableRouteModules": [
+        "/sitemap"
+      ],
+      "sourceIndexableCount": 127,
+      "exactExistingManifest": true,
+      "sameRobots": true,
+      "futurePageOrAssetExposure": false,
+      "requiredCiChecks": [
+        "Technical reliability release validation / node20-alpine",
+        "Staged content boundary if installed"
+      ],
+      "originalHeadCiRun": 43532158019,
+      "requiredBrowserChecks": "Inline gradient/solid output, clipboard fallback, drag/drop, keyboard, and actual exports",
+      "requiredSecurityChecks": "SVG parser, output XML, references, replay privacy and render/resource budgets",
+      "requiredSeoChecks": "Exact reviewed diff, HTTP routes, metadata, schema, sitemap and robots, no later content",
+      "requiredAdChecks": "Mock lifecycle and ad overlap at release head; genuine-network evidence at production where relevant",
+      "rollbackSourceReference": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "historicalReviewedRollbackReference": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "ownerApprovalState": "NOT OWNER APPROVED",
+      "githubPublicationState": "DRAFT / UNMERGED",
+      "productionDeploymentState": "NOT DEPLOYED IN PHASE 3",
+      "productionVerificationState": "UNVERIFIED",
+      "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source",
+      "localProductionBuildAndChecks": {
+        "test:routes": 0,
+        "test:seo": 0,
+        "test:schema": 0,
+        "test:docs": 0,
+        "test:route-coverage": 0,
+        "test:links": 0
+      },
+      "exactQueueFileAllowlistMatched": true
+    }
+  ],
+  "correctionsInstallReplay": {
+    "kind": "local proof of replay only; no approval, scheduling, publication or production history",
+    "installationBase": "78dda78994ea90e7b3a839725021bc316463434e",
+    "installationHead": "42dd426ebcc7ddf7c6ab7cfb494dbdf94e7a2f9a",
+    "administrativeInstallationPaths": [
+      ".github/workflows/content-release-boundary.yml",
+      ".github/workflows/weekly-seo-preparation.yml",
+      "ai-issues/seo/draft-workflow-setup.md",
+      "ai-issues/seo/release-history.json",
+      "ai-issues/seo/release-queue.json",
+      "scripts/content-release-boundary.mjs",
+      "scripts/weekly-seo-pipeline-test.mjs",
+      "scripts/weekly-seo-plan.mjs"
+    ],
+    "records": [
+      {
+        "id": "SVG-SEO-MAINTAINER",
+        "originalBase": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+        "originalHead": "690dea0a67d092b6ab7c096096686a123dd61175",
+        "gitReplayReviewedBase": "dcf4e79a17845ce02b934305fd9894c4ce48b353",
+        "gitReplayHead": "591619383c81c4729b7bae96a747609e68c0dafb",
+        "gitReplayPredecessor": "42dd426ebcc7ddf7c6ab7cfb494dbdf94e7a2f9a",
+        "prerequisiteFiles": [
+          "scripts/route-http-smoke.mjs"
+        ],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      },
+      {
+        "id": "SVG-SEO-MOBILE-HELP",
+        "originalBase": "690dea0a67d092b6ab7c096096686a123dd61175",
+        "originalHead": "1154088f8ce25918980dbcf92bd2f3794612f893",
+        "gitReplayReviewedBase": "591619383c81c4729b7bae96a747609e68c0dafb",
+        "gitReplayHead": "1acba869ca257c719cca3ff14b658203cbc27872",
+        "gitReplayPredecessor": "591619383c81c4729b7bae96a747609e68c0dafb",
+        "prerequisiteFiles": [],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      },
+      {
+        "id": "SVG-SEO-PATH-INSPECTION",
+        "originalBase": "e34f3412584f39af820f09438e65e24989ae82e4",
+        "originalHead": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+        "gitReplayReviewedBase": "751dab55d7e51afe14324a2a302eab43947e9505",
+        "gitReplayHead": "e09a5fe55981c1ae6e77a5eeba913155ed98c7ed",
+        "gitReplayPredecessor": "1acba869ca257c719cca3ff14b658203cbc27872",
+        "prerequisiteFiles": [
+          "scripts/docs-audit.mjs",
+          "scripts/docs-public-assets-test.mjs"
+        ],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      },
+      {
+        "id": "SVG-SEO-CRAFT-REVIEW",
+        "originalBase": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+        "originalHead": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+        "gitReplayReviewedBase": "e09a5fe55981c1ae6e77a5eeba913155ed98c7ed",
+        "gitReplayHead": "32bda85838d966ec98e04d61f1bde44bf9a82627",
+        "gitReplayPredecessor": "e09a5fe55981c1ae6e77a5eeba913155ed98c7ed",
+        "prerequisiteFiles": [],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      },
+      {
+        "id": "SVG-SEO-BACKGROUND-HELP",
+        "originalBase": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+        "originalHead": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+        "gitReplayReviewedBase": "32bda85838d966ec98e04d61f1bde44bf9a82627",
+        "gitReplayHead": "9651d7d186fa9ab8c99de722fc67edf44f3b5ac6",
+        "gitReplayPredecessor": "32bda85838d966ec98e04d61f1bde44bf9a82627",
+        "prerequisiteFiles": [],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      },
+      {
+        "id": "SVG-SEO-SPRITE-UTILITY",
+        "originalBase": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+        "originalHead": "40856446cf75a0a58070b72bf218002789bad48d",
+        "gitReplayReviewedBase": "9651d7d186fa9ab8c99de722fc67edf44f3b5ac6",
+        "gitReplayHead": "30e8527060f74c38a490ad09daff79bcb4e18c15",
+        "gitReplayPredecessor": "9651d7d186fa9ab8c99de722fc67edf44f3b5ac6",
+        "prerequisiteFiles": [],
+        "sameApplicationTreeAsHistoricalPackage": true,
+        "exactOriginalAllowlist": true,
+        "originalRefsRequireRevalidation": true,
+        "unapprovedCandidateGateRejected": true
+      }
+    ]
+  },
+  "correctedAggregateGitReplay": {
+    "localHead": "853bab8adbb854830efdaac3ddb01c36dcc33b8f",
+    "ciReferenceHead": "abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f",
+    "sameAppAndPublicTrees": true,
+    "conflictFree": true,
+    "reviewedUiCorrection": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+    "reviewedSpriteCorrection": "7cc86a817cf15a0cd8e8960cc7af306d71a39709",
+    "reviewedDocAuditCorrection": "2a3e9df4d83dd32014d14dd7a00337750e682568",
+    "correctedDocsAuditPassed": true,
+    "correctedRegressionPassedOnPackageCAssets": true,
+    "requiresActualBaseReplay": true,
+    "installedWorkflowAt": "6dd3c9a9110575ed2aa896743dd0c916be9246df",
+    "focusedDocsCheckHead": "853bab8adbb854830efdaac3ddb01c36dcc33b8f"
+  },
+  "correctedReleaseSequence": {
+    "node": "v20.20.2",
+    "complete": true,
+    "adminInstallationHead": "6dd3c9a9110575ed2aa896743dd0c916be9246df",
+    "adminPlannerAndTrustedBoundaryPass": true,
+    "releaseVerificationScope": "Local production builds and loopback SSR per amended transition, plus source boundaries; no GitHub CI claim for replayed SHAs",
+    "records": [
+      {
+        "id": "PR11",
+        "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+        "head": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+        "predecessor": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": false,
+        "sourceIndexableCount": 125,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/",
+          "/image-to-svg-outline",
+          "/jpeg-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/logo-to-svg-converter",
+          "/photo-to-svg-outline",
+          "/png-to-svg-converter",
+          "/scan-to-svg-converter",
+          "/webp-to-svg-converter"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": true,
+        "nextEligibilityCondition": "Owner establishes main update behavior and verifies present runtime and rollback, separately resolves protected ad-policy handling and satisfies genuine ad-network verification before exact PR11 publication"
+      },
+      {
+        "id": "PR12",
+        "base": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+        "head": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+        "predecessor": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": false,
+        "sourceIndexableCount": 125,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/",
+          "/png-to-svg-converter",
+          "/svg-cleaner"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-MAINTAINER",
+        "base": "b92f422add68349f05c46ba887c6ade42ba077f0",
+        "head": "4999e26776c464c7a433c411507a22e431a530eb",
+        "predecessor": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+        "prerequisiteFiles": [
+          ".github/workflows/content-release-boundary.yml",
+          ".github/workflows/weekly-seo-preparation.yml",
+          "ai-issues/seo/draft-workflow-setup.md",
+          "ai-issues/seo/release-history.json",
+          "ai-issues/seo/release-queue.json",
+          "scripts/content-release-boundary.mjs",
+          "scripts/route-http-smoke.mjs",
+          "scripts/weekly-seo-pipeline-test.mjs",
+          "scripts/weekly-seo-plan.mjs"
+        ],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 126,
+        "newIndexableUrls": [
+          "/author/suhas-sunder"
+        ],
+        "changedExistingIndexableRouteModules": [
+          "/sitemap"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-MOBILE-HELP",
+        "base": "4999e26776c464c7a433c411507a22e431a530eb",
+        "head": "b74a1a062f0d613ca5089d153aa5b41a9aa80245",
+        "predecessor": "4999e26776c464c7a433c411507a22e431a530eb",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 126,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/how-it-works/troubleshooting",
+          "/png-to-svg-converter"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-PATH-INSPECTION",
+        "base": "37057a3076665a3ed547558b54d78bfa87f04c8c",
+        "head": "4c04843a9c0d3d146700a6a046b887692eb1a87f",
+        "predecessor": "b74a1a062f0d613ca5089d153aa5b41a9aa80245",
+        "prerequisiteFiles": [
+          "scripts/docs-audit.mjs",
+          "scripts/docs-public-assets-test.mjs"
+        ],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 126,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/how-it-works/exporting-and-downloads"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-CRAFT-REVIEW",
+        "base": "4c04843a9c0d3d146700a6a046b887692eb1a87f",
+        "head": "f78b0b3dbfa7f5be5549f03bac05e18f2c48d533",
+        "predecessor": "4c04843a9c0d3d146700a6a046b887692eb1a87f",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 126,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/png-to-svg-for-cricut"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-BACKGROUND-HELP",
+        "base": "f78b0b3dbfa7f5be5549f03bac05e18f2c48d533",
+        "head": "df2327a83c0aa678ebb0d87705c3bcdb496dcba3",
+        "predecessor": "f78b0b3dbfa7f5be5549f03bac05e18f2c48d533",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 126,
+        "newIndexableUrls": [],
+        "changedExistingIndexableRouteModules": [
+          "/svg-background-editor"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      },
+      {
+        "id": "SVG-SEO-SPRITE-UTILITY",
+        "base": "df2327a83c0aa678ebb0d87705c3bcdb496dcba3",
+        "head": "853bab8adbb854830efdaac3ddb01c36dcc33b8f",
+        "predecessor": "df2327a83c0aa678ebb0d87705c3bcdb496dcba3",
+        "prerequisiteFiles": [],
+        "fileAllowlistMatched": true,
+        "sourceIndexableCount": 127,
+        "newIndexableUrls": [
+          "/svg-sprite-generator"
+        ],
+        "changedExistingIndexableRouteModules": [
+          "/sitemap"
+        ],
+        "ssrSitemapRobotsAndFutureRouteChecksPassed": true,
+        "existingRoutesAndRobotsPreserved": true,
+        "localProductionBuildAndChecks": {
+          "test:routes": 0,
+          "test:seo": 0,
+          "test:schema": 0,
+          "test:docs": 0,
+          "test:route-coverage": 0,
+          "test:links": 0
+        },
+        "exactHeadGitHubCiApplies": false,
+        "nextEligibilityCondition": "Previous release verified in production, then exact replacement candidate reviewed and approved against that deployed source"
+      }
+    ]
+  }
+}

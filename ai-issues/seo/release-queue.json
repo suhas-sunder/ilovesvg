@@ -1,6 +1,40 @@
 {
   "version": 1,
   "earliestPublicationWeek": "2026-11-16",
+  "phase3Proposal": {
+    "status": "review-proposal-only",
+    "acceptanceReport": "ai-issues/PHASE3-FINAL-ACCEPTANCE.md",
+    "sequenceEvidence": "ai-issues/phase3/release-sequence-evidence.json",
+    "requiresExactDeployedBaseReplay": true,
+    "requiresOwnerApprovalForEachRelease": true,
+    "adSafetyStatus": "blocked-protected-global-placeholder-policy-divergence",
+    "adSafetyEvidence": "ai-issues/PHASE3-FINAL-ACCEPTANCE.md#18-advertising-safety-checks-and-correction-to-earlier-reports",
+    "historicalAdReviewLabelsSuperseded": true,
+    "releases": [
+      { "id": "PR11", "pullRequest": 11 },
+      { "id": "PR12", "pullRequest": 12, "correctionPullRequest": 23 },
+      { "id": "SVG-SEO-MAINTAINER", "pullRequest": 15, "technicalPrerequisitePullRequest": 14 },
+      { "id": "SVG-SEO-MOBILE-HELP", "pullRequest": 16 },
+      { "id": "SVG-SEO-PATH-INSPECTION", "pullRequest": 18, "technicalPrerequisitePullRequest": 17, "correctionPullRequest": 26 },
+      { "id": "SVG-SEO-CRAFT-REVIEW", "pullRequest": 19 },
+      { "id": "SVG-SEO-BACKGROUND-HELP", "pullRequest": 20 },
+      { "id": "SVG-SEO-SPRITE-UTILITY", "pullRequest": 21, "correctionPullRequest": 24 }
+    ],
+    "correctionHeads": {
+      "23": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+      "24": "7cc86a817cf15a0cd8e8960cc7af306d71a39709",
+      "25": "c4356cf5308fe6ab7cc1944bbfe5ba13ceb2e5ce",
+      "26": "2a3e9df4d83dd32014d14dd7a00337750e682568"
+    },
+    "draftInfrastructure": {
+      "installationPullRequest": 10,
+      "correctionPullRequest": 25,
+      "historicalExtractionBase": "78dda78994ea90e7b3a839725021bc316463434e",
+      "historicalExtractionHead": "42dd426ebcc7ddf7c6ab7cfb494dbdf94e7a2f9a",
+      "installAfterVerifiedTechnicalFoundation": true,
+      "activationApproved": false
+    }
+  },
   "candidates": [
     {
       "id": "SVG-SEO-MAINTAINER",

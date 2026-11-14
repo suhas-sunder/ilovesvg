@@ -1,0 +1,42 @@
+2026-11-14T03:24:06.6544838Z   ref: abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f
+2026-11-14T03:24:09.3191450Z [command]/usr/bin/git rev-parse --verify --quiet abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f^{object}
+2026-11-14T03:24:09.3192750Z abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f
+2026-11-14T03:24:09.3200053Z [command]/usr/bin/git checkout --progress --force abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f
+2026-11-14T03:24:09.4146820Z Note: switching to 'abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f'.
+2026-11-14T03:24:09.4157632Z HEAD is now at abf58b7 fix: name shared landmarks and advertisement groups accessibly
+2026-11-14T03:24:09.4258233Z abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f
+2026-11-14T03:24:09.5543826Z docker run --rm --entrypoint sh ilovesvg-source-check -ec 'test ! -e /app/.tmp; test ! -e /app/tmp; test ! -e /app/.git; test ! -e /app/logs'
+2026-11-14T03:24:09.5550381Z docker build --label org.opencontainers.image.revision="${revision}" -t ilovesvg-release-check .
+2026-11-14T03:24:09.5553828Z docker run --rm --entrypoint sh ilovesvg-built-check -ec 'node scripts/server-startup-collision-test.mjs; npm run test:native-memory'
+2026-11-14T03:24:09.5556098Z docker run -d --name ilovesvg-release-runtime -p 127.0.0.1:3000:3000 ilovesvg-release-check
+2026-11-14T03:24:09.5565539Z docker run --rm --network host --entrypoint sh -e BASE_URL=http://127.0.0.1:3000 ilovesvg-source-check -ec 'npm run test:conversion-actions; npm run test:input-compatibility; npm run test:seo; npm run test:schema; npm run test:routes'
+2026-11-14T03:24:12.3409356Z #2 [internal] load metadata for docker.io/library/node:20-alpine
+2026-11-14T03:24:12.7489902Z #2 [internal] load metadata for docker.io/library/node:20-alpine
+2026-11-14T03:24:13.3408078Z #5 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T03:24:13.3409726Z #5 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 0.0s done
+2026-11-14T03:24:13.4414841Z #5 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T03:24:14.7641054Z #5 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T03:25:15.7545103Z [conversion-cache-audit] all checks passed
+2026-11-14T03:25:21.9534283Z Hybrid fallback regression passed: terminal server errors, early cancellation, pending cancellation, late response suppression, successful cache ownership.
+2026-11-14T03:25:22.1441026Z Hybrid legacy and shared-consumer regression passed.
+2026-11-14T03:25:22.4095226Z Handled server error table passed: 400/403/413/415/429/500/502/503/504 are terminal; Retry-After survives.
+2026-11-14T03:25:22.4918830Z Route request identity regression passed: server, client, cache, and deduplicated consumers.
+2026-11-14T03:25:23.4596784Z Server retry regression passed: 8 routes, BUSY/429 responses, no automatic submissions, outline result history preserved.
+2026-11-14T03:25:24.7771353Z Conversion gate cancellation passed: queued and pre-aborted jobs, active ownership, FIFO recovery, idempotent release.
+2026-11-14T03:25:29.1983229Z   "note": "Conversion/singleton/failure tests passed; set RUN2_NODE25_EXECUTABLE to verify native-WASM reference parity."
+2026-11-14T03:25:29.6692124Z #2 [internal] load metadata for docker.io/library/node:20-alpine
+2026-11-14T03:25:30.0207159Z #4 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T03:25:30.0208945Z #4 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 0.0s done
+2026-11-14T03:26:20.7171019Z #20 naming to docker.io/library/ilovesvg-release-check:latest done
+2026-11-14T03:26:20.7171520Z #20 unpacking to docker.io/library/ilovesvg-release-check:latest
+2026-11-14T03:26:22.9145157Z #20 unpacking to docker.io/library/ilovesvg-release-check:latest 2.3s done
+2026-11-14T03:26:23.2638599Z #2 [internal] load metadata for docker.io/library/node:20-alpine
+2026-11-14T03:26:23.6022187Z #4 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T03:26:23.6023437Z #4 resolve docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 done
+2026-11-14T03:26:43.3065585Z > test:native-memory
+2026-11-14T03:26:43.3066062Z > node --expose-gc scripts/native-memory-retention-audit.mjs
+2026-11-14T03:27:08.1636074Z > test:conversion-actions
+2026-11-14T03:27:14.2080839Z > test:input-compatibility
+2026-11-14T03:27:16.0872007Z > test:seo
+2026-11-14T03:27:18.5408364Z > test:schema
+2026-11-14T03:27:19.8043074Z > test:routes

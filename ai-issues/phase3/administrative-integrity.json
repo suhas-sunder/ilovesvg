@@ -1,0 +1,14 @@
+{
+  "operationalRecordsUnchanged": true,
+  "historyEmpty": true,
+  "activationApproved": false,
+  "candidateCount": 6,
+  "noEligibleCandidateOn": [
+    "2026-11-13",
+    "2026-11-16",
+    "2026-11-23",
+    "2026-12-28",
+    "2027-01-04"
+  ],
+  "adSafetyStatus": "blocked-protected-global-placeholder-policy-divergence"
+}

@@ -1,0 +1,263 @@
+{
+  "head": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+  "base": "78dda78994ea90e7b3a839725021bc316463434e",
+  "node": "v20.20.2",
+  "toolchainExitCodes": {
+    "typecheck": 0,
+    "build": 0,
+    "test": 0,
+    "server": 0,
+    "diff": 0
+  },
+  "httpBoundary": {
+    "sitemapIndexedUrls": 125,
+    "author": 404,
+    "sprite": 404,
+    "exampleAsset": 404,
+    "existingExportGuide": 200,
+    "existingTroubleshooting": 200,
+    "phase2CopyAbsent": true
+  },
+  "browsers": {
+    "chromium": {
+      "version": "147.0.7727.15",
+      "png": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 3,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "history": [
+        {
+          "route": "/",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        }
+      ]
+    },
+    "webkit": {
+      "version": "26.4",
+      "png": [
+        {
+          "scenario": "remove",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "replace",
+          "holdAt": 2,
+          "posts": 1,
+          "statuses": [
+            "succeeded"
+          ],
+          "sourceURLs": 3,
+          "hash": "47f9b2365601a6a93d4c2fa7cbc316888283777e02e62e5bca38d2b7111272e0",
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 2,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 1,
+          "passed": true
+        },
+        {
+          "scenario": "navigate",
+          "holdAt": 1,
+          "posts": 0,
+          "statuses": [],
+          "sourceURLs": 0,
+          "passed": true
+        },
+        {
+          "scenario": "cancel",
+          "holdAt": "fingerprint",
+          "posts": 0,
+          "statuses": [
+            "canceled"
+          ],
+          "sourceURLs": 2,
+          "passed": true
+        }
+      ],
+      "history": [
+        {
+          "route": "/",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        },
+        {
+          "route": "/png-to-svg-converter",
+          "original": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "replacement": {
+            "hash": "91651a21eb39e90f82e68f8eda3ed010dee25548cb6676ae19f66e75c4d9a111",
+            "dimensions": [
+              96,
+              72
+            ]
+          },
+          "after": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "afterReselect": {
+            "hash": "d0fff1ced0e24de45408efccec08d846186065a205ed5e549027498da9a839bf",
+            "dimensions": [
+              160,
+              120
+            ]
+          },
+          "additionalPosts": 0,
+          "errors": [],
+          "passed": true
+        }
+      ]
+    }
+  }
+}

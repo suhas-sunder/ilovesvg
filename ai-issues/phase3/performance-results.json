@@ -1,0 +1,705 @@
+{
+  "note": "Local Chromium cold contexts, blocked third parties, no throttling. Shared workstation load; not field CWV, mobile hardware, production or latency guarantee. Inventory sums are whole-build, not per-page transfer.",
+  "bundles": [
+    {
+      "label": "PR11",
+      "raw": 7185308,
+      "gzip": 2708137,
+      "routes": [
+        {
+          "name": "home-B5k8wrcX.js",
+          "bytes": 88635,
+          "gzip": 23929
+        },
+        {
+          "name": "how-it-works.exporting-and-downloads-lbw3M7Xq.js",
+          "bytes": 2086,
+          "gzip": 976
+        },
+        {
+          "name": "png-to-svg-converter-Di5ySDsB.js",
+          "bytes": 33090,
+          "gzip": 10849
+        },
+        {
+          "name": "png-to-svg-converter-T9z0j78v.js",
+          "bytes": 984,
+          "gzip": 552
+        },
+        {
+          "name": "svg-background-editor-BBbRcMqA.js",
+          "bytes": 42788,
+          "gzip": 12657
+        },
+        {
+          "name": "svg-background-remover-CUu-2Dwq.js",
+          "bytes": 408,
+          "gzip": 299
+        }
+      ]
+    },
+    {
+      "label": "PR12",
+      "raw": 7193463,
+      "gzip": 2710752,
+      "routes": [
+        {
+          "name": "home-D2143y06.js",
+          "bytes": 89473,
+          "gzip": 24223
+        },
+        {
+          "name": "how-it-works.exporting-and-downloads-D0CJ3zDZ.js",
+          "bytes": 2086,
+          "gzip": 973
+        },
+        {
+          "name": "png-to-svg-converter-BcJN08GY.js",
+          "bytes": 1023,
+          "gzip": 573
+        },
+        {
+          "name": "png-to-svg-converter-CZNigyKq.js",
+          "bytes": 33467,
+          "gzip": 11011
+        },
+        {
+          "name": "svg-background-editor-zX69xeU7.js",
+          "bytes": 42788,
+          "gzip": 12655
+        },
+        {
+          "name": "svg-background-remover-BlCvHfSX.js",
+          "bytes": 408,
+          "gzip": 299
+        }
+      ]
+    },
+    {
+      "label": "corrected-integrated",
+      "raw": 7266342,
+      "gzip": 2735316,
+      "routes": [
+        {
+          "name": "author.suhas-sunder-DX0SpUDd.js",
+          "bytes": 4855,
+          "gzip": 1977
+        },
+        {
+          "name": "home-CTUEfy5W.js",
+          "bytes": 89537,
+          "gzip": 24248
+        },
+        {
+          "name": "how-it-works.exporting-and-downloads-C3J1x9Rj.js",
+          "bytes": 24383,
+          "gzip": 6702
+        },
+        {
+          "name": "png-to-svg-converter-B1DmZPSO.js",
+          "bytes": 1024,
+          "gzip": 574
+        },
+        {
+          "name": "png-to-svg-converter-D9W173FX.js",
+          "bytes": 34098,
+          "gzip": 11201
+        },
+        {
+          "name": "svg-background-editor-DXiu31rJ.js",
+          "bytes": 42560,
+          "gzip": 12420
+        },
+        {
+          "name": "svg-background-remover-BlCvHfSX.js",
+          "bytes": 408,
+          "gzip": 299
+        },
+        {
+          "name": "svg-sprite-generator-Bkn9268D.js",
+          "bytes": 29597,
+          "gzip": 11150
+        }
+      ]
+    }
+  ],
+  "loads": [
+    {
+      "label": "PR11",
+      "path": "/",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        117
+      ],
+      "lcp": 248,
+      "domContentLoadedMs": 246.79999999701977,
+      "loadMs": 276.40000000596046,
+      "documentBytes": 253155,
+      "transferBytes": 547175,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        155
+      ],
+      "lcp": 280,
+      "domContentLoadedMs": 277.3999999910593,
+      "loadMs": 310.29999999701977,
+      "documentBytes": 253155,
+      "transferBytes": 547175,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        117
+      ],
+      "lcp": 228,
+      "domContentLoadedMs": 218.5,
+      "loadMs": 250.70000000298023,
+      "documentBytes": 253155,
+      "transferBytes": 547175,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        69
+      ],
+      "lcp": 180,
+      "domContentLoadedMs": 167.59999999403954,
+      "loadMs": 177.20000000298023,
+      "documentBytes": 93281,
+      "transferBytes": 274378,
+      "requests": 16,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR11",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        87
+      ],
+      "lcp": 180,
+      "domContentLoadedMs": 165.90000000596046,
+      "loadMs": 177.20000000298023,
+      "documentBytes": 93281,
+      "transferBytes": 274378,
+      "requests": 16,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR11",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        61
+      ],
+      "lcp": 144,
+      "domContentLoadedMs": 130.6000000089407,
+      "loadMs": 140.1000000089407,
+      "documentBytes": 93281,
+      "transferBytes": 274378,
+      "requests": 16,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR11",
+      "path": "/png-to-svg-for-cricut",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        117
+      ],
+      "lcp": 216,
+      "domContentLoadedMs": 211.70000000298023,
+      "loadMs": 239.59999999403954,
+      "documentBytes": 246239,
+      "transferBytes": 536636,
+      "requests": 32,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/png-to-svg-for-cricut",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        147
+      ],
+      "lcp": 264,
+      "domContentLoadedMs": 262.1000000089407,
+      "loadMs": 303.80000001192093,
+      "documentBytes": 246239,
+      "transferBytes": 536636,
+      "requests": 32,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/png-to-svg-for-cricut",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        106
+      ],
+      "lcp": 212,
+      "domContentLoadedMs": 215,
+      "loadMs": 253.20000000298023,
+      "documentBytes": 246239,
+      "transferBytes": 536636,
+      "requests": 32,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR11",
+      "path": "/svg-background-editor",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        133
+      ],
+      "lcp": 248,
+      "domContentLoadedMs": 242.80000001192093,
+      "loadMs": 250.70000000298023,
+      "documentBytes": 237870,
+      "transferBytes": 323784,
+      "requests": 21,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "PR11",
+      "path": "/svg-background-editor",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        118
+      ],
+      "lcp": 220,
+      "domContentLoadedMs": 213.90000000596046,
+      "loadMs": 226,
+      "documentBytes": 237870,
+      "transferBytes": 323784,
+      "requests": 21,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "PR11",
+      "path": "/svg-background-editor",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        131
+      ],
+      "lcp": 216,
+      "domContentLoadedMs": 211,
+      "loadMs": 221.40000000596046,
+      "documentBytes": 237870,
+      "transferBytes": 323784,
+      "requests": 21,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "PR12",
+      "path": "/",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        104
+      ],
+      "lcp": 228,
+      "domContentLoadedMs": 220.69999998807907,
+      "loadMs": 256.09999999403954,
+      "documentBytes": 254252,
+      "transferBytes": 549560,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        123
+      ],
+      "lcp": 204,
+      "domContentLoadedMs": 202.20000000298023,
+      "loadMs": 238.09999999403954,
+      "documentBytes": 254252,
+      "transferBytes": 549560,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        102
+      ],
+      "lcp": 184,
+      "domContentLoadedMs": 184.70000000298023,
+      "loadMs": 219.6000000089407,
+      "documentBytes": 254252,
+      "transferBytes": 549560,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        57
+      ],
+      "lcp": 128,
+      "domContentLoadedMs": 115.70000000298023,
+      "loadMs": 127.40000000596046,
+      "documentBytes": 93826,
+      "transferBytes": 273905,
+      "requests": 15,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR12",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        56
+      ],
+      "lcp": 132,
+      "domContentLoadedMs": 116,
+      "loadMs": 131.20000000298023,
+      "documentBytes": 93826,
+      "transferBytes": 273905,
+      "requests": 15,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR12",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        66
+      ],
+      "lcp": 148,
+      "domContentLoadedMs": 145.79999999701977,
+      "loadMs": 159,
+      "documentBytes": 93826,
+      "transferBytes": 273905,
+      "requests": 15,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "PR12",
+      "path": "/png-to-svg-for-cricut",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        162
+      ],
+      "lcp": 292,
+      "domContentLoadedMs": 279.40000000596046,
+      "loadMs": 318.5,
+      "documentBytes": 246971,
+      "transferBytes": 536920,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/png-to-svg-for-cricut",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        140
+      ],
+      "lcp": 344,
+      "domContentLoadedMs": 344.40000000596046,
+      "loadMs": 403,
+      "documentBytes": 246971,
+      "transferBytes": 536920,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/png-to-svg-for-cricut",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        177
+      ],
+      "lcp": 324,
+      "domContentLoadedMs": 321.09999999403954,
+      "loadMs": 355.29999999701977,
+      "documentBytes": 246971,
+      "transferBytes": 536920,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "PR12",
+      "path": "/svg-background-editor",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        169
+      ],
+      "lcp": 280,
+      "domContentLoadedMs": 272.70000000298023,
+      "loadMs": 284,
+      "documentBytes": 238449,
+      "transferBytes": 323478,
+      "requests": 20,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "PR12",
+      "path": "/svg-background-editor",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        124
+      ],
+      "lcp": 220,
+      "domContentLoadedMs": 211.90000000596046,
+      "loadMs": 222,
+      "documentBytes": 238449,
+      "transferBytes": 323478,
+      "requests": 20,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "PR12",
+      "path": "/svg-background-editor",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        166
+      ],
+      "lcp": 288,
+      "domContentLoadedMs": 283.59999999403954,
+      "loadMs": 341,
+      "documentBytes": 238449,
+      "transferBytes": 323478,
+      "requests": 20,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        157
+      ],
+      "lcp": 296,
+      "domContentLoadedMs": 294.30000001192093,
+      "loadMs": 344.6000000089407,
+      "documentBytes": 255813,
+      "transferBytes": 551191,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        157
+      ],
+      "lcp": 320,
+      "domContentLoadedMs": 312.20000000298023,
+      "loadMs": 349.40000000596046,
+      "documentBytes": 255813,
+      "transferBytes": 551191,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        127
+      ],
+      "lcp": 272,
+      "domContentLoadedMs": 263.09999999403954,
+      "loadMs": 294,
+      "documentBytes": 255813,
+      "transferBytes": 551191,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        85
+      ],
+      "lcp": 184,
+      "domContentLoadedMs": 165.19999998807907,
+      "loadMs": 183.19999998807907,
+      "documentBytes": 112019,
+      "transferBytes": 323440,
+      "requests": 24,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        86
+      ],
+      "lcp": 188,
+      "domContentLoadedMs": 170.5,
+      "loadMs": 193.69999998807907,
+      "documentBytes": 112019,
+      "transferBytes": 323440,
+      "requests": 24,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/how-it-works/exporting-and-downloads",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        84
+      ],
+      "lcp": 184,
+      "domContentLoadedMs": 163.70000000298023,
+      "loadMs": 175.6000000089407,
+      "documentBytes": 112019,
+      "transferBytes": 323440,
+      "requests": 24,
+      "heapUsed": 10000000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/png-to-svg-for-cricut",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        191
+      ],
+      "lcp": 424,
+      "domContentLoadedMs": 412.79999999701977,
+      "loadMs": 449,
+      "documentBytes": 251207,
+      "transferBytes": 540981,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/png-to-svg-for-cricut",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        117
+      ],
+      "lcp": 228,
+      "domContentLoadedMs": 223,
+      "loadMs": 249.59999999403954,
+      "documentBytes": 251207,
+      "transferBytes": 540981,
+      "requests": 31,
+      "heapUsed": 11200000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/png-to-svg-for-cricut",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        112,
+        65
+      ],
+      "lcp": 360,
+      "domContentLoadedMs": 420.40000000596046,
+      "loadMs": 456.79999999701977,
+      "documentBytes": 251207,
+      "transferBytes": 540981,
+      "requests": 31,
+      "heapUsed": 12700000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/svg-background-editor",
+      "run": 0,
+      "cls": 0,
+      "longTasks": [
+        122
+      ],
+      "lcp": 232,
+      "domContentLoadedMs": 228.20000000298023,
+      "loadMs": 236.20000000298023,
+      "documentBytes": 236045,
+      "transferBytes": 323555,
+      "requests": 20,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/svg-background-editor",
+      "run": 1,
+      "cls": 0,
+      "longTasks": [
+        121
+      ],
+      "lcp": 204,
+      "domContentLoadedMs": 195.8999999910593,
+      "loadMs": 203.29999999701977,
+      "documentBytes": 236045,
+      "transferBytes": 323555,
+      "requests": 20,
+      "heapUsed": 10600000
+    },
+    {
+      "label": "corrected-integrated",
+      "path": "/svg-background-editor",
+      "run": 2,
+      "cls": 0,
+      "longTasks": [
+        101
+      ],
+      "lcp": 188,
+      "domContentLoadedMs": 178.5,
+      "loadMs": 187.40000000596046,
+      "documentBytes": 236045,
+      "transferBytes": 323555,
+      "requests": 20,
+      "heapUsed": 10600000
+    }
+  ]
+}
