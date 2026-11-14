@@ -2796,6 +2796,15 @@ export const UTILITIES: UtilityLink[] = [
     keywords: ["embed svg", "inline svg", "svg html", "img tag"],
   },
   {
+    id: "svg-sprite-generator",
+    title: "SVG Sprite Generator",
+    shortTitle: "SVG Sprite",
+    description: "Combine SVG icons into reusable symbols, preview each icon, and copy inline HTML snippets.",
+    to: "/svg-sprite-generator",
+    group: "Developer SVG",
+    keywords: ["svg sprite", "symbol", "icon set", "use"],
+  },
+  {
     id: "inline-svg-vs-img",
     title: "Inline SVG vs IMG",
     shortTitle: "Inline vs IMG",

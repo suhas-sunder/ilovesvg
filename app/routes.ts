@@ -40,6 +40,7 @@ export default [
   route("svg-cleaner", "routes/svg-cleaner.tsx"),
   route("svg-preview-viewer", "routes/svg-preview-viewer.tsx"),
   route("svg-embed-code-generator", "routes/svg-embed-code-generator.tsx"),
+  route("svg-sprite-generator", "routes/svg-sprite-generator.tsx"),
   route("inline-svg-vs-img", "routes/inline-svg-vs-img.tsx"),
   route("svg-to-favicon-generator", "routes/svg-to-favicon-generator.tsx"),
   route("svg-stroke-width-editor", "routes/svg-stroke-width-editor.tsx"),

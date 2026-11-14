@@ -1,0 +1,50 @@
+[
+  {
+    "task": "test",
+    "exit": 0
+  },
+  {
+    "task": "test:seo",
+    "exit": 0
+  },
+  {
+    "task": "test:schema",
+    "exit": 0
+  },
+  {
+    "task": "test:routes",
+    "exit": 0
+  },
+  {
+    "task": "test:route-coverage",
+    "exit": 0
+  },
+  {
+    "task": "test:manifest-bundle",
+    "exit": 0
+  },
+  {
+    "task": "test:nav",
+    "exit": 0
+  },
+  {
+    "task": "test:monetization",
+    "exit": 0
+  },
+  {
+    "task": "test:docs",
+    "exit": 0
+  },
+  {
+    "task": "test:conversion-actions",
+    "exit": 0
+  },
+  {
+    "task": "test:input-compatibility",
+    "exit": 0
+  },
+  {
+    "task": "test:queue",
+    "exit": 0
+  }
+]

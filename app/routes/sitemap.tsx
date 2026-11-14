@@ -749,6 +749,11 @@ const sitemapSections: SitemapSection[] = [
           "Decode Base64 SVG data back into readable SVG markup and downloadable files.",
       },
       {
+        title: "SVG Sprite Generator",
+        path: "/svg-sprite-generator",
+        description: "Combine SVG icons into a symbol sprite and copy inline HTML snippets.",
+      },
+      {
         title: "Free Color Picker",
         path: "/free-color-picker",
         description:
