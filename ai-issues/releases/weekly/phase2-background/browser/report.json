@@ -1,0 +1,1601 @@
+{
+  "target": "background",
+  "path": "/svg-background-editor",
+  "base": "http://127.0.0.1:5297/",
+  "baseline": "http://127.0.0.1:5280/",
+  "layout": [
+    {
+      "engineName": "chromium",
+      "width": 320,
+      "screenshot": "chromium-320.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 320,
+        "document": 320,
+        "body": 320
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 375,
+      "screenshot": "chromium-375.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 375,
+        "document": 375,
+        "body": 375
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 390,
+      "screenshot": "chromium-390.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 390,
+        "document": 390,
+        "body": 390
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 430,
+      "screenshot": "chromium-430.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 430,
+        "document": 430,
+        "body": 430
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 768,
+      "screenshot": "chromium-768.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 768,
+        "document": 768,
+        "body": 768
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1024,
+      "screenshot": "chromium-1024.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1024,
+        "document": 1024,
+        "body": 1024
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1440,
+      "screenshot": "chromium-1440.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1440,
+        "document": 1440,
+        "body": 1440
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 320,
+      "screenshot": "webkit-320.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 320,
+        "document": 320,
+        "body": 320
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 375,
+      "screenshot": "webkit-375.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 375,
+        "document": 375,
+        "body": 375
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 390,
+      "screenshot": "webkit-390.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 390,
+        "document": 390,
+        "body": 390
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 430,
+      "screenshot": "webkit-430.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 430,
+        "document": 430,
+        "body": 430
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 768,
+      "screenshot": "webkit-768.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 768,
+        "document": 768,
+        "body": 768
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1024,
+      "screenshot": "webkit-1024.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1024,
+        "document": 1024,
+        "body": 1024
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1440,
+      "screenshot": "webkit-1440.jpg",
+      "metadata": {
+        "title": "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG",
+        "canonical": [
+          "https://www.ilovesvg.com/svg-background-editor"
+        ],
+        "tags": [
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "viewport",
+            "width=device-width, initial-scale=1"
+          ],
+          [
+            "description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "theme-color",
+            "#0b2dff"
+          ],
+          [
+            "og:title",
+            "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG"
+          ],
+          [
+            "og:description",
+            "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download."
+          ],
+          [
+            "og:type",
+            "website"
+          ],
+          [
+            "og:url",
+            "https://www.ilovesvg.com/svg-background-editor"
+          ]
+        ]
+      },
+      "schema": {
+        "nonFaqJsonLd": [
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.ilovesvg.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "SVG Background Editor",
+                "item": "https://www.ilovesvg.com/svg-background-editor"
+              }
+            ]
+          }
+        ],
+        "microdata": [],
+        "faqJson": true,
+        "faq": [
+          {
+            "q": "Why doesn’t “remove background” change anything?",
+            "a": "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background."
+          },
+          {
+            "q": "Why does my new background color stay hidden?",
+            "a": "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color."
+          },
+          {
+            "q": "What does Replace background do?",
+            "a": "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop."
+          },
+          {
+            "q": "Can Manual remove select a path or part of an embedded photo?",
+            "a": "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app."
+          }
+        ]
+      },
+      "viewport": {
+        "inner": 1440,
+        "document": 1440,
+        "body": 1440
+      },
+      "adSlots": [
+        "2090332782",
+        "2346286299",
+        "6632213024",
+        "7336722354",
+        "8102088582",
+        "8102088582"
+      ],
+      "h1": [
+        "SVG Background Editor"
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "engineName": "chromium",
+      "width": 390,
+      "transparent": {
+        "bytes": 115,
+        "sha256": "34cb5493674f482d284c488005e03348601a41f8c7cec59055546452bcc196eb",
+        "viewBox": "0 0 120 120",
+        "paths": 0,
+        "subpaths": 0,
+        "rects": [],
+        "circles": [
+          [
+            "60",
+            "60",
+            "42",
+            "#0b2dff"
+          ]
+        ],
+        "images": 0,
+        "width": 120,
+        "height": 120,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          11,
+          45,
+          255,
+          255
+        ],
+        "sampleAlpha": []
+      },
+      "opaque": {
+        "bytes": 217,
+        "sha256": "e6f8b7fbe499c60846ee39b930c34ea4cb7a2be59c8a6a83e96cc41e548a23d5",
+        "viewBox": "0 0 120 120",
+        "paths": 0,
+        "subpaths": 0,
+        "rects": [
+          [
+            "#ffffff",
+            "120",
+            "120"
+          ]
+        ],
+        "circles": [
+          [
+            "60",
+            "60",
+            "42",
+            "#0b2dff"
+          ]
+        ],
+        "images": 0,
+        "width": 120,
+        "height": 120,
+        "corner": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "center": [
+          11,
+          45,
+          255,
+          255
+        ],
+        "sampleAlpha": []
+      }
+    },
+    {
+      "engineName": "webkit",
+      "width": 390,
+      "transparent": {
+        "bytes": 115,
+        "sha256": "34cb5493674f482d284c488005e03348601a41f8c7cec59055546452bcc196eb",
+        "viewBox": "0 0 120 120",
+        "paths": 0,
+        "subpaths": 0,
+        "rects": [],
+        "circles": [
+          [
+            "60",
+            "60",
+            "42",
+            "#0b2dff"
+          ]
+        ],
+        "images": 0,
+        "width": 120,
+        "height": 120,
+        "corner": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "center": [
+          11,
+          45,
+          255,
+          255
+        ],
+        "sampleAlpha": []
+      },
+      "opaque": {
+        "bytes": 217,
+        "sha256": "e6f8b7fbe499c60846ee39b930c34ea4cb7a2be59c8a6a83e96cc41e548a23d5",
+        "viewBox": "0 0 120 120",
+        "paths": 0,
+        "subpaths": 0,
+        "rects": [
+          [
+            "#ffffff",
+            "120",
+            "120"
+          ]
+        ],
+        "circles": [
+          [
+            "60",
+            "60",
+            "42",
+            "#0b2dff"
+          ]
+        ],
+        "images": 0,
+        "width": 120,
+        "height": 120,
+        "corner": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "center": [
+          11,
+          45,
+          255,
+          255
+        ],
+        "sampleAlpha": []
+      }
+    }
+  ],
+  "failures": []
+}
