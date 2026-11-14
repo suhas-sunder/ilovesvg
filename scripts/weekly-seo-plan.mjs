@@ -7,6 +7,25 @@ export const EARLIEST_WEEK = "2026-11-16";
 const SHA = /^[a-f0-9]{40}$/;
 const BRANCH = /^codex\/seo\/[a-z0-9][a-z0-9._/-]*$/;
 
+export function dependencyRevisions(candidate, queue, history) {
+  const dependencies = candidate.dependencies || [];
+  if (!Array.isArray(dependencies) || new Set(dependencies).size !== dependencies.length ||
+      dependencies.some((id) => typeof id !== "string" || id === candidate.id || !/^(?:PR[0-9]+|SVG-[A-Z0-9-]+)$/.test(id))) {
+    throw new Error("Eligible candidate has invalid release dependencies");
+  }
+  return dependencies.map((id) => {
+    const prerequisite = Object.hasOwn(queue.technicalPrerequisites || {}, id) && queue.technicalPrerequisites[id];
+    if (prerequisite) {
+      if (!SHA.test(prerequisite)) throw new Error(`Technical prerequisite ${id} needs an exact commit`);
+      return prerequisite;
+    }
+    const records = history.releases.filter((record) => record.id === id);
+    if (records.length > 1) throw new Error(`Release dependency ${id} has multiple history records`);
+    const release = records[0]?.productionVerified === true ? records[0] : null;
+    return SHA.test(release?.finalDeployedCommit || "") ? release.finalDeployedCommit : null;
+  });
+}
+
 export function releaseWeek(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
@@ -18,13 +37,13 @@ export function releaseWeek(now = new Date()) {
 }
 
 export function selectWeeklyCandidate(queue, history, now = new Date()) {
-  if (queue.version !== 1 || !Array.isArray(queue.candidates) || !Array.isArray(history.releases)) {
+  if (queue.version !== 1 || history.version !== 1 || !Array.isArray(queue.candidates) || !Array.isArray(history.releases)) {
     throw new Error("Invalid queue/history format");
   }
   const week = releaseWeek(now);
   if (week < EARLIEST_WEEK || history.releases.some((release) => release.week === week)) return null;
   const eligible = queue.candidates.filter((candidate) =>
-    candidate.approvedForSchedule === true && candidate.plannedWeek === week &&
+    candidate.ownerApproved === true && candidate.approvedForSchedule === true && candidate.plannedWeek === week &&
     !candidate.actualPublicationDate && !history.releases.some((release) => release.id === candidate.id));
   if (eligible.length > 1) throw new Error("More than one candidate batch approved this week; skip rather than choose arbitrarily");
   const candidate = eligible[0];
@@ -56,6 +75,7 @@ export function selectWeeklyCandidate(queue, history, now = new Date()) {
       candidate.allowedFiles.some((file) => !/^(app\/|public\/|ai-issues\/releases\/weekly\/)/.test(file) || file.includes("..") || /[\r\n]/.test(file))) {
     throw new Error("Eligible candidate needs evidence, rollback and an explicit application/content file allowlist");
   }
+  if (dependencyRevisions(candidate, queue, history).includes(null)) return null;
   return { ...candidate, week };
 }
 
