@@ -1,0 +1,38 @@
+{
+  "scope": "Initial correction before bootstrap, actual source CSS in native DOM. React effects intentionally not installed to model pre-hydration window; no ad network.",
+  "cssSha256": "7c281e29cba877d7afc7d9894dda9e0fecc9a71a912aba7f34ff7ad7a7210aa6",
+  "rows": [
+    {
+      "engine": "chromium",
+      "before": [
+        "visible",
+        "visible"
+      ],
+      "filled": [
+        "hidden",
+        "hidden"
+      ],
+      "laterUnfilled": [
+        "visible",
+        "visible"
+      ],
+      "latch": null
+    },
+    {
+      "engine": "webkit",
+      "before": [
+        "visible",
+        "visible"
+      ],
+      "filled": [
+        "hidden",
+        "hidden"
+      ],
+      "laterUnfilled": [
+        "visible",
+        "visible"
+      ],
+      "latch": null
+    }
+  ]
+}

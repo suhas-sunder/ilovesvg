@@ -1,0 +1,190 @@
+{
+  "status": "VALIDATED LOCALLY",
+  "scope": "Git structure/source boundary only; no runtime or production claim",
+  "main": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+  "foundation": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+  "candidate": "ea88da59e1d662bf41579821b6c496a64e905003",
+  "ancestry": [
+    "ea88da59e1d662bf41579821b6c496a64e905003"
+  ],
+  "narrowFiles": [
+    ".github/workflows/reliability-release.yml",
+    "app/app.css",
+    "app/client/components/ads/AdsenseDelayed.tsx",
+    "app/client/lib/monetization/adPlaceholderSafety.ts",
+    "app/root.tsx",
+    "scripts/ad-placeholder-safety-test.mjs"
+  ],
+  "applicationChanges": [
+    "app/app.css",
+    "app/client/components/ads/AdsenseDelayed.tsx",
+    "app/client/lib/monetization/adPlaceholderSafety.ts",
+    "app/root.tsx"
+  ],
+  "commitsCreatedAreDisposable": true,
+  "queuesChanged": false,
+  "productionStateChanged": false,
+  "exactFutureHeadsRequireRevalidation": true,
+  "records": [
+    {
+      "id": "PR11",
+      "validatedPhase3Reference": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "replayHead": "ea88da59e1d662bf41579821b6c496a64e905003",
+      "tree": "cfc7fa51d99149d12435ec5128df28b44ab0bd53",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 125,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": false,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "PR12",
+      "validatedPhase3Reference": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+      "replayHead": "186a26f835246089e505663a7b2e929678cd2bbf",
+      "tree": "438bc6cfc79432e40733d103a039cf2ae2823ded",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 125,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-MAINTAINER",
+      "validatedPhase3Reference": "4999e26776c464c7a433c411507a22e431a530eb",
+      "replayHead": "ef1a4b3749a95bc48bfbdf97d31d00d19183efcd",
+      "tree": "86b6fb8468fdc4627667b2f3f6179d806b529a70",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 126,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-MOBILE-HELP",
+      "validatedPhase3Reference": "b74a1a062f0d613ca5089d153aa5b41a9aa80245",
+      "replayHead": "49ce039f6674a8349d92498d5534ca2bb796b493",
+      "tree": "cc5250379978a695a3c8f40e3bc0bbf2102b6e63",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 126,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-PATH-INSPECTION",
+      "validatedPhase3Reference": "4c04843a9c0d3d146700a6a046b887692eb1a87f",
+      "replayHead": "539cadc0a1a0756501c3706f4621b436a282820d",
+      "tree": "72dc91703a6fea3ee3ddef5225e5af7aff0e00db",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 126,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-CRAFT-REVIEW",
+      "validatedPhase3Reference": "f78b0b3dbfa7f5be5549f03bac05e18f2c48d533",
+      "replayHead": "e9f23c9a3a48190c1b38459d1b6abcaf6a014318",
+      "tree": "1dfb07e603d7d666ec5c5eee18e02d676d2a0bbb",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 126,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-BACKGROUND-HELP",
+      "validatedPhase3Reference": "df2327a83c0aa678ebb0d87705c3bcdb496dcba3",
+      "replayHead": "cab232136ad7b3b99652ff4e3ed08ede5848a89d",
+      "tree": "55125217dfc61209be02ae7ce67822504183195a",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 126,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    },
+    {
+      "id": "SVG-SEO-SPRITE-UTILITY",
+      "validatedPhase3Reference": "853bab8adbb854830efdaac3ddb01c36dcc33b8f",
+      "replayHead": "336c7a7a0043cb1bb6c1328ee225fb061e59d81a",
+      "tree": "faa6e29be03a1ed493e76d994188f1318c111f4a",
+      "applicationDifferences": [
+        "app/app.css",
+        "app/client/components/ads/AdsenseDelayed.tsx",
+        "app/client/lib/monetization/adPlaceholderSafety.ts",
+        "app/root.tsx"
+      ],
+      "sourceIndexableCount": 127,
+      "noFutureAuthorOrSpriteExposure": true,
+      "examplesBeginAtC": true,
+      "routeManifestAndRobotsPreserved": true,
+      "laterRoleGroupPreserved": true,
+      "structuralChecksPassed": true,
+      "exactHeadCiClaimed": false,
+      "safetyBootstrapAndCssPreserved": true
+    }
+  ]
+}

@@ -1,0 +1,316 @@
+{
+  "scope": "Native DOM bootstrap and actual source CSS race probes; production-app matrix is separate. No ad network requests.",
+  "scriptSourceSha256": "e7cefc386731f79f691b589205d0972a89c46e27760e7a341ed81baae1e5f056",
+  "results": [
+    {
+      "engine": "chromium",
+      "observed": [
+        {
+          "scenario": "false-positive-controls",
+          "states": [
+            {
+              "label": "large-pending-iframe",
+              "latch": null,
+              "visibility": [
+                "hidden",
+                "visible"
+              ]
+            },
+            {
+              "label": "unfilled-unrelated-and-nested-markers",
+              "latch": null,
+              "visibility": [
+                "visible",
+                "visible"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 0,
+            "callbacks": 2
+          }
+        },
+        {
+          "scenario": "prehydration-filled-unfilled",
+          "states": [
+            {
+              "label": "synchronous-css-before-callback",
+              "latch": null,
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            },
+            {
+              "label": "filled-before-hydration",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            },
+            {
+              "label": "later-unfilled-before-hydration",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "same-task-detach-transition",
+          "states": [
+            {
+              "label": "detached-before-delivery",
+              "latch": "true",
+              "visibility": [
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "prefilled-subtree-insertion",
+          "states": [
+            {
+              "label": "prepopulated-subtree-added-then-removed",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "initial-filled-scan",
+          "states": [
+            {
+              "label": "existing-fill-on-bootstrap",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 0
+          }
+        },
+        {
+          "scenario": "idempotence-and-disconnect",
+          "states": [
+            {
+              "label": "1000-post-latch-transitions-and-new-slot",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 2
+          }
+        },
+        {
+          "scenario": "new-document-isolation",
+          "states": [
+            {
+              "label": "new-document-starts-unsuppressed",
+              "latch": null,
+              "visibility": [
+                "visible",
+                "visible"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 0,
+            "callbacks": 0
+          }
+        }
+      ]
+    },
+    {
+      "engine": "webkit",
+      "observed": [
+        {
+          "scenario": "false-positive-controls",
+          "states": [
+            {
+              "label": "large-pending-iframe",
+              "latch": null,
+              "visibility": [
+                "hidden",
+                "visible"
+              ]
+            },
+            {
+              "label": "unfilled-unrelated-and-nested-markers",
+              "latch": null,
+              "visibility": [
+                "visible",
+                "visible"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 0,
+            "callbacks": 2
+          }
+        },
+        {
+          "scenario": "prehydration-filled-unfilled",
+          "states": [
+            {
+              "label": "synchronous-css-before-callback",
+              "latch": null,
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            },
+            {
+              "label": "filled-before-hydration",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            },
+            {
+              "label": "later-unfilled-before-hydration",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "same-task-detach-transition",
+          "states": [
+            {
+              "label": "detached-before-delivery",
+              "latch": "true",
+              "visibility": [
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "prefilled-subtree-insertion",
+          "states": [
+            {
+              "label": "prepopulated-subtree-added-then-removed",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 1
+          }
+        },
+        {
+          "scenario": "initial-filled-scan",
+          "states": [
+            {
+              "label": "existing-fill-on-bootstrap",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 0
+          }
+        },
+        {
+          "scenario": "idempotence-and-disconnect",
+          "states": [
+            {
+              "label": "1000-post-latch-transitions-and-new-slot",
+              "latch": "true",
+              "visibility": [
+                "hidden",
+                "hidden",
+                "hidden"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 1,
+            "callbacks": 2
+          }
+        },
+        {
+          "scenario": "new-document-isolation",
+          "states": [
+            {
+              "label": "new-document-starts-unsuppressed",
+              "latch": null,
+              "visibility": [
+                "visible",
+                "visible"
+              ]
+            }
+          ],
+          "metrics": {
+            "created": 1,
+            "disconnected": 0,
+            "callbacks": 0
+          }
+        }
+      ]
+    }
+  ]
+}

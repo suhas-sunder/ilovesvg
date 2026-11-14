@@ -1,0 +1,275 @@
+{
+  "observedAtUtc": "2026-11-14T04:19:04.149Z",
+  "pullRequests": [
+    {
+      "number": 26,
+      "title": "Keep documentation download checks inside the real public directory",
+      "state": "open",
+      "draft": true,
+      "head": "2a3e9df4d83dd32014d14dd7a00337750e682568",
+      "headRef": "codex/phase3-pr17-public-containment",
+      "base": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "baseRef": "codex/phase2-docs-assets-prerequisite",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T03:30:34Z"
+    },
+    {
+      "number": 25,
+      "title": "Enforce owner, dependency and trusted-base gates before SEO drafts",
+      "state": "open",
+      "draft": true,
+      "head": "c4356cf5308fe6ab7cc1944bbfe5ba13ceb2e5ce",
+      "headRef": "codex/phase3-pr10-gates",
+      "base": "5c8dcd49f5b5d081d27054a670777c009d8b3802",
+      "baseRef": "codex/run4-seo-draft-setup",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T03:28:36Z"
+    },
+    {
+      "number": 24,
+      "title": "Reject sprite path numbers that browsers truncate",
+      "state": "open",
+      "draft": true,
+      "head": "7cc86a817cf15a0cd8e8960cc7af306d71a39709",
+      "headRef": "codex/phase3-sprite-correction",
+      "base": "40856446cf75a0a58070b72bf218002789bad48d",
+      "baseRef": "codex/seo/phase2-sprite-utility",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T03:28:34Z"
+    },
+    {
+      "number": 23,
+      "title": "Fix stale PNG submissions and history source identity; correct shared semantics",
+      "state": "open",
+      "draft": true,
+      "head": "7c00cc58950a2bef21498ab781ef82fd717ab0cf",
+      "headRef": "codex/phase3-ui-corrections",
+      "base": "78dda78994ea90e7b3a839725021bc316463434e",
+      "baseRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T03:28:33Z"
+    },
+    {
+      "number": 22,
+      "title": "Record Phase 2 acceptance and unapproved weekly release queue",
+      "state": "open",
+      "draft": true,
+      "head": "71050b16805e9909171bcb0074d1209cf090df24",
+      "headRef": "codex/phase2-handoff",
+      "base": "40856446cf75a0a58070b72bf218002789bad48d",
+      "baseRef": "codex/seo/phase2-sprite-utility",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:14:53Z"
+    },
+    {
+      "number": 21,
+      "title": "Prepare bounded SVG sprite generator with verified inline exports",
+      "state": "open",
+      "draft": true,
+      "head": "40856446cf75a0a58070b72bf218002789bad48d",
+      "headRef": "codex/seo/phase2-sprite-utility",
+      "base": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "baseRef": "codex/seo/phase2-background-guidance",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:14:15Z"
+    },
+    {
+      "number": 20,
+      "title": "Prepare verified SVG background editing guidance",
+      "state": "open",
+      "draft": true,
+      "head": "dd36207dbfc233475b22a949c3806f29fdb883e8",
+      "headRef": "codex/seo/phase2-background-guidance",
+      "base": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "baseRef": "codex/seo/phase2-craft-guidance",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:02:29Z"
+    },
+    {
+      "number": 19,
+      "title": "Prepare practical Cricut cut-file inspection guidance",
+      "state": "open",
+      "draft": true,
+      "head": "c2477b3950d62bb4ecd77ff427e25da2cb6586d8",
+      "headRef": "codex/seo/phase2-craft-guidance",
+      "base": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "baseRef": "codex/seo/phase2-output-examples",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:02:27Z"
+    },
+    {
+      "number": 18,
+      "title": "Prepare reproducible SVG inspection and conversion examples",
+      "state": "open",
+      "draft": true,
+      "head": "2c8fb494d417be4aed183deae816ad8e67d8c6a5",
+      "headRef": "codex/seo/phase2-output-examples",
+      "base": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "baseRef": "codex/phase2-docs-assets-prerequisite",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:02:25Z"
+    },
+    {
+      "number": 17,
+      "title": "Validate documentation download links against actual public files",
+      "state": "open",
+      "draft": true,
+      "head": "e34f3412584f39af820f09438e65e24989ae82e4",
+      "headRef": "codex/phase2-docs-assets-prerequisite",
+      "base": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "baseRef": "codex/seo/phase2-mobile-recovery",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T00:14:17Z"
+    },
+    {
+      "number": 16,
+      "title": "Prepare practical mobile image recovery guidance",
+      "state": "open",
+      "draft": true,
+      "head": "1154088f8ce25918980dbcf92bd2f3794612f893",
+      "headRef": "codex/seo/phase2-mobile-recovery",
+      "base": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "baseRef": "codex/seo/phase2-maintainer",
+      "mergedAt": null,
+      "updatedAt": "2026-11-13T14:35:19Z"
+    },
+    {
+      "number": 15,
+      "title": "Prepare maintainer profile and footer attribution for weekly review",
+      "state": "open",
+      "draft": true,
+      "head": "690dea0a67d092b6ab7c096096686a123dd61175",
+      "headRef": "codex/seo/phase2-maintainer",
+      "base": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "baseRef": "codex/phase2-route-smoke-prerequisite",
+      "mergedAt": null,
+      "updatedAt": "2026-11-13T14:29:17Z"
+    },
+    {
+      "number": 14,
+      "title": "Register nested maintainer URL in route smoke checks",
+      "state": "open",
+      "draft": true,
+      "head": "2f59bd2cc8f4a2ab89012ead5930205272b4c42d",
+      "headRef": "codex/phase2-route-smoke-prerequisite",
+      "base": "78dda78994ea90e7b3a839725021bc316463434e",
+      "baseRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "mergedAt": null,
+      "updatedAt": "2026-11-13T14:29:16Z"
+    },
+    {
+      "number": 13,
+      "title": "VERIFY ONLY — Phase 3 integrated acceptance runtime (never merge)",
+      "state": "open",
+      "draft": true,
+      "head": "abf58b7886338b6d1b07a0501cab7f3bc7eb1b8f",
+      "headRef": "codex/phase2-foundation-ci",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "baseRef": "main",
+      "mergedAt": null,
+      "updatedAt": "2026-11-14T03:46:02Z"
+    },
+    {
+      "number": 12,
+      "title": "Polish conversion workflows, mobile results and keyboard accessibility",
+      "state": "open",
+      "draft": true,
+      "head": "78dda78994ea90e7b3a839725021bc316463434e",
+      "headRef": "codex/ilovesvg-final-ui-ux-buildout",
+      "base": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "baseRef": "release/2026-W46-ilovesvg-consolidated",
+      "mergedAt": null,
+      "updatedAt": "2026-11-13T05:12:30Z"
+    },
+    {
+      "number": 11,
+      "title": "Consolidate raster recovery and batch cancellation for release",
+      "state": "open",
+      "draft": true,
+      "head": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+      "headRef": "release/2026-W46-ilovesvg-consolidated",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "baseRef": "main",
+      "mergedAt": null,
+      "updatedAt": "2026-11-09T03:55:11Z"
+    },
+    {
+      "number": 10,
+      "title": "Prepare an opt-in weekly SEO draft workflow",
+      "state": "open",
+      "draft": true,
+      "head": "5c8dcd49f5b5d081d27054a670777c009d8b3802",
+      "headRef": "codex/run4-seo-draft-setup",
+      "base": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+      "baseRef": "main",
+      "mergedAt": null,
+      "updatedAt": "2026-11-09T03:40:17Z"
+    }
+  ],
+  "main": "f53292e1551a714c884103d1e0bc5e5c2172f1f1",
+  "initialHead": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+  "pullRequestReviewChecks": [{"number":11,"reviews":0,"threads":0},{"number":12,"reviews":0,"threads":0},{"number":13,"reviews":0,"threads":0},{"number":23,"reviews":0,"threads":0},{"number":24,"reviews":0,"threads":0},{"number":25,"reviews":0,"threads":0},{"number":26,"reviews":0,"threads":0}],
+  "finalCorrection": {
+    "status": ["IMPLEMENTED", "VALIDATED LOCALLY", "CI VALIDATED", "PUSHED"],
+    "head": "ea88da59e1d662bf41579821b6c496a64e905003",
+    "base": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+    "pullRequest": 27,
+    "draft": true,
+    "mergeable": true,
+    "mergeableState": "clean",
+    "commits": 1,
+    "changedFiles": 6,
+    "ciRun": 43557404764,
+    "ciJob": 132333254737,
+    "ciConclusion": "success",
+    "merged": false,
+    "deployed": false,
+    "productionVerified": false,
+    "genuineAdNetworkVerified": false,
+    "productionReleaseStatus": "BLOCKED",
+    "evidence": "ai-issues/ad-safety/ci-evidence.json"
+  },
+  "deployment": {
+    "observedAtUtc": "2026-11-14T04:19:44.938Z",
+    "hooks": {
+      "status": 200,
+      "count": 0
+    },
+    "deployments": {
+      "status": 200,
+      "count": 0
+    },
+    "environments": {
+      "status": 200,
+      "names": [
+        "copilot"
+      ]
+    },
+    "mainPushActionsRuns": {
+      "count": 0
+    },
+    "workflowPermissions": {
+      "default": "read",
+      "canApprovePullRequestReviews": false
+    },
+    "seoOptIn": {
+      "status": 404,
+      "present": false
+    },
+    "externalGitHubInstallation": {
+      "status": 401,
+      "visible": false
+    },
+    "mainTreeWorkflowCount": 0,
+    "mainTreeDeploymentConfig": [
+      "Dockerfile"
+    ],
+    "manualOnlyDeploymentProven": false,
+    "currentRuntimeRevision": null,
+    "currentArtifactIdentity": null,
+    "retainedRollback": null,
+    "hostHealthChecks": null,
+    "cohostedServiceHealth": null,
+    "hostAccessAttempted": false
+  }
+}

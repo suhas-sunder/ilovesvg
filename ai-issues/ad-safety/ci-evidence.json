@@ -1,0 +1,86 @@
+{
+  "observedAtUtc": "2026-11-14T04:40:19.775Z",
+  "status": "CI VALIDATED",
+  "head": "ea88da59e1d662bf41579821b6c496a64e905003",
+  "base": "c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4",
+  "pullRequest": {
+    "number": 27,
+    "url": "https://github.com/suhas-sunder/ilovesvg/pull/27",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "mergeable": true,
+    "mergeableState": "clean",
+    "commits": 1,
+    "changedFiles": 6,
+    "comments": 0,
+    "reviewComments": 0
+  },
+  "workflow": {
+    "id": 43557404764,
+    "url": "https://github.com/suhas-sunder/ilovesvg/actions/runs/43557404764",
+    "path": ".github/workflows/reliability-release.yml",
+    "event": "pull_request",
+    "conclusion": "success",
+    "runAttempt": 1,
+    "startedAt": "2026-11-14T04:35:24Z",
+    "jobs": [
+      {
+        "id": 132333254737,
+        "name": "node20-alpine",
+        "status": "completed",
+        "conclusion": "success",
+        "run_id": 43557404764,
+        "logs_url": null,
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2
+          },
+          {
+            "name": "Build and test in the repository-declared runtime",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3
+          },
+          {
+            "name": "Check source whitespace",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9
+          }
+        ]
+      }
+    ]
+  },
+  "dockerBaseImage": "docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293",
+  "jobLogsVerified": true,
+  "applicationRuntime": "Node20 Alpine Docker image",
+  "checkoutActionRuntime": "Hosted runner forced actions/checkout@v4 to Node24; not application runtime",
+  "optionalNode25ReferenceParity": "Not configured in this CI run",
+  "scopeExclusions": [
+    "No browser mock matrix in this job; separate local browser evidence",
+    "No genuine ad-network acceptance",
+    "No production deployment/runtime verification"
+  ]
+}

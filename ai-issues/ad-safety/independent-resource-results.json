@@ -1,0 +1,158 @@
+{
+  "scope": "Bounded native-DOM resource probe with actual bootstrap, before and after fill. No network, no artwork uploads, no universal performance or heap-retention claim.",
+  "sourceSha256": "e7cefc386731f79f691b589205d0972a89c46e27760e7a341ed81baae1e5f056",
+  "results": [
+    {
+      "engine": "chromium",
+      "stages": [
+        {
+          "name": "one-20000-path-subtree",
+          "elapsedMs": 20,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 1,
+          "records": 1,
+          "callbackMs": 0.20000000298023224,
+          "maxCallbackMs": 0.20000000298023224
+        },
+        {
+          "name": "40000-unrelated-svg-attribute-edits",
+          "elapsedMs": 10.900000005960464,
+          "additionalCallbacks": 0,
+          "additionalRecords": 0,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 1,
+          "records": 1,
+          "callbackMs": 0.20000000298023224,
+          "maxCallbackMs": 0.20000000298023224
+        },
+        {
+          "name": "40-spa-like-replacements-500-attached-paths-each",
+          "elapsedMs": 204.70000000298023,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 42,
+          "records": 20042,
+          "callbackMs": 11.199999958276749,
+          "maxCallbackMs": 0.5
+        },
+        {
+          "name": "40-equivalent-post-fill-replacements",
+          "elapsedMs": 222.8999999910593,
+          "observers": 1,
+          "disconnects": 1,
+          "callbacks": 43,
+          "records": 20044,
+          "callbackMs": 11.39999994635582,
+          "maxCallbackMs": 0.5
+        }
+      ],
+      "beforeFill": {
+        "observers": 1,
+        "disconnects": 0,
+        "callbacks": 42,
+        "records": 20042,
+        "callbackMs": 11.199999958276749,
+        "maxCallbackMs": 0.5
+      },
+      "afterFill": {
+        "observers": 1,
+        "disconnects": 1,
+        "callbacks": 43,
+        "records": 20044,
+        "callbackMs": 11.39999994635582,
+        "maxCallbackMs": 0.5
+      },
+      "final": {
+        "observers": 1,
+        "disconnects": 1,
+        "callbacks": 43,
+        "records": 20044,
+        "callbackMs": 11.39999994635582,
+        "maxCallbackMs": 0.5
+      },
+      "nodesBeforeFill": 501,
+      "remainingFixtureNodes": 0,
+      "latch": "true",
+      "observerPropertyPresent": false,
+      "totalElapsedMs": 470.59999999403954
+    },
+    {
+      "engine": "webkit",
+      "stages": [
+        {
+          "name": "one-20000-path-subtree",
+          "elapsedMs": 121,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 1,
+          "records": 1,
+          "callbackMs": 1,
+          "maxCallbackMs": 1
+        },
+        {
+          "name": "40000-unrelated-svg-attribute-edits",
+          "elapsedMs": 123,
+          "additionalCallbacks": 0,
+          "additionalRecords": 0,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 1,
+          "records": 1,
+          "callbackMs": 1,
+          "maxCallbackMs": 1
+        },
+        {
+          "name": "40-spa-like-replacements-500-attached-paths-each",
+          "elapsedMs": 627,
+          "observers": 1,
+          "disconnects": 0,
+          "callbacks": 42,
+          "records": 20042,
+          "callbackMs": 17,
+          "maxCallbackMs": 1
+        },
+        {
+          "name": "40-equivalent-post-fill-replacements",
+          "elapsedMs": 623.9999999999999,
+          "observers": 1,
+          "disconnects": 1,
+          "callbacks": 43,
+          "records": 20044,
+          "callbackMs": 17,
+          "maxCallbackMs": 1
+        }
+      ],
+      "beforeFill": {
+        "observers": 1,
+        "disconnects": 0,
+        "callbacks": 42,
+        "records": 20042,
+        "callbackMs": 17,
+        "maxCallbackMs": 1
+      },
+      "afterFill": {
+        "observers": 1,
+        "disconnects": 1,
+        "callbacks": 43,
+        "records": 20044,
+        "callbackMs": 17,
+        "maxCallbackMs": 1
+      },
+      "final": {
+        "observers": 1,
+        "disconnects": 1,
+        "callbacks": 43,
+        "records": 20044,
+        "callbackMs": 17,
+        "maxCallbackMs": 1
+      },
+      "nodesBeforeFill": 501,
+      "remainingFixtureNodes": 0,
+      "latch": "true",
+      "observerPropertyPresent": false,
+      "totalElapsedMs": 1538
+    }
+  ]
+}

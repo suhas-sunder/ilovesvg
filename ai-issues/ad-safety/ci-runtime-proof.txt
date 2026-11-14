@@ -1,0 +1,30 @@
+Exact-head CI log excerpts (not production evidence)
+Run 43557404764; job 132333254737; head ea88da59e1d662bf41579821b6c496a64e905003
+Conclusion success; all 6 recorded steps successful.
+The checkout action used its hosted runtime; application tests/builds ran inside the recorded node:20-alpine Docker image.
+Optional external Node25 native-WASM parity was not configured. Browser ad/network tests are separate local evidence.
+2026-11-14T04:35:30.4032521Z   ref: ea88da59e1d662bf41579821b6c496a64e905003
+2026-11-14T04:35:35.3835327Z [command]/usr/bin/git checkout --progress --force ea88da59e1d662bf41579821b6c496a64e905003
+2026-11-14T04:35:35.5809780Z docker run --rm --entrypoint sh ilovesvg-source-check -ec 'test ! -e /app/.tmp; test ! -e /app/tmp; test ! -e /app/.git; test ! -e /app/logs'
+2026-11-14T04:35:35.5810479Z docker run --rm --entrypoint sh ilovesvg-source-check -ec 'npm run typecheck; npm test; node scripts/ad-placeholder-safety-test.mjs; node --check server.js'
+2026-11-14T04:35:35.5811148Z docker build --label org.opencontainers.image.revision="${revision}" -t ilovesvg-release-check .
+2026-11-14T04:35:35.5812049Z docker run --rm --entrypoint sh ilovesvg-built-check -ec 'node scripts/server-startup-collision-test.mjs; npm run test:native-memory'
+2026-11-14T04:35:35.5815435Z docker run --rm --network host --entrypoint sh -e BASE_URL=http://127.0.0.1:3000 ilovesvg-source-check -ec 'npm run test:conversion-actions; npm run test:input-compatibility; npm run test:seo; npm run test:schema; npm run test:routes'
+2026-11-14T04:35:35.5816346Z test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ilovesvg-release-runtime)" = "${revision}"
+2026-11-14T04:35:41.1154478Z #6 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T04:35:42.0398574Z #6 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T04:36:25.3198669Z [conversion-cache-audit] all checks passed
+2026-11-14T04:36:30.2838560Z Hybrid fallback regression passed: terminal server errors, early cancellation, pending cancellation, late response suppression, successful cache ownership.
+2026-11-14T04:36:30.3970750Z Hybrid legacy and shared-consumer regression passed.
+2026-11-14T04:36:30.6581311Z Route request identity regression passed: server, client, cache, and deduplicated consumers.
+2026-11-14T04:36:31.4105718Z Server retry regression passed: 8 routes, BUSY/429 responses, no automatic submissions, outline result history preserved.
+2026-11-14T04:36:36.1444840Z   "note": "Conversion/singleton/failure tests passed; set RUN2_NODE25_EXECUTABLE to verify native-WASM reference parity."
+2026-11-14T04:36:36.6202265Z Ad safety bootstrap: fill classification, delayed/removal records, idempotence, observer cleanup and document isolation passed.
+2026-11-14T04:36:37.2758820Z #4 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T04:37:14.9559689Z #4 [development-dependencies-env 1/4] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+2026-11-14T04:37:27.5429919Z PASS occupied port fails startup with no false readiness message.
+2026-11-14T04:37:43.8867358Z     "outputParity": true
+2026-11-14T04:38:03.1168172Z ##[group]Run git diff --check "${BASE_SHA:-HEAD^}" HEAD
+2026-11-14T04:38:03.1168486Z git diff --check "${BASE_SHA:-HEAD^}" HEAD
+2026-11-14T04:38:03.1187731Z   BASE_SHA: c5cfeb0a7018b5d2ff50f9f9b99502d647f320c4
+2026-11-14T04:38:03.3642561Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
