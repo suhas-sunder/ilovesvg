@@ -356,6 +356,7 @@ async function runRouteSmoke(route, fixturePath) {
     await waitForValue(client, () => textIncludesExpression(path.basename(fixturePath)), 15_000);
 
     let output = null;
+    const presetSelectionStartedAt = await evaluate(client, "Date.now()");
     if (route.mode === "vtracer") {
       phase = "select-vtracer-preset";
       selectedPreset = await selectVTracerPreset(client, route);
@@ -390,10 +391,14 @@ async function runRouteSmoke(route, fixturePath) {
     }
 
     phase = "wait-for-output";
+    const expectedOutputIdentity = selectedPreset
+      ? { presetLabel: selectedPreset.split(/\r?\n/)[0].trim(), startedAfter: presetSelectionStartedAt, routeId: route.id }
+      : null;
     output = await waitForOutput(
       client,
       route.mode === "default" ? 4_000 : 60_000,
       route.expectedEngine,
+      expectedOutputIdentity,
     ).catch(() => null);
 
     if (!output) {
@@ -404,6 +409,7 @@ async function runRouteSmoke(route, fixturePath) {
         client,
         60_000,
         route.mode === "vtracer" || route.mode === "centerline" ? route.expectedEngine : null,
+        expectedOutputIdentity,
       );
     } else {
       convertButton = "preset-triggered conversion";
@@ -418,7 +424,7 @@ async function runRouteSmoke(route, fixturePath) {
       };
     })()`);
     phase = "verify-output-actions";
-    const actions = await verifyOutputActions(client, route, output.engineUsed);
+    const actions = await verifyOutputActions(client, route, output.engineUsed, output.outputStamp);
 
     const ok =
       (!route.expectedEngine || output.engineUsed === route.expectedEngine) &&
@@ -447,6 +453,7 @@ async function runRouteSmoke(route, fixturePath) {
       expectedEngine: route.expectedEngine,
       engineUsed: output.engineUsed,
       selectedPreset,
+      outputIdentity: output.outputIdentity,
       convertButton,
       hasOutput: output.hasOutput,
       previewDecoded: output.previewDecoded,
@@ -2611,12 +2618,13 @@ async function readTraceDebug(client) {
   return evaluate(client, `(() => Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__) ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__ : [])()`);
 }
 
-async function verifyOutputActions(client, route, expectedEngine) {
+async function verifyOutputActions(client, route, expectedEngine, outputStamp = null) {
   let phase = "copy";
   try {
-    const copy = await verifyCopySvg(client);
+    const outputSelector = outputStamp ? `[data-output-stamp="${outputStamp}"]` : null;
+    const copy = await verifyCopySvg(client, outputSelector);
     phase = "download";
-    const download = await verifySvgDownload(client, `${safeName(route.id)}-${route.scenario}`);
+    const download = await verifySvgDownload(client, `${safeName(route.id)}-${route.scenario}`, outputSelector);
     phase = "update-preview";
     const updatePreview = await verifyUpdatePreview(client, expectedEngine);
     return {
@@ -2637,14 +2645,14 @@ async function verifyOutputActions(client, route, expectedEngine) {
   }
 }
 
-async function verifyCopySvg(client) {
+async function verifyCopySvg(client, outputSelector = null) {
   await client.send("Page.bringToFront").catch(() => {});
   await client.send("Browser.grantPermissions", {
     origin: baseUrl,
     permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"],
   }).catch(() => {});
   await evaluate(client, `(() => { window.focus(); document.body?.focus?.(); return true; })()`).catch(() => {});
-  await clickButtonMatching(client, "/Copy SVG/i", { reject: "/ZIP|batch/i" });
+  await clickButtonMatching(client, "/Copy SVG/i", { reject: "/ZIP|batch/i", scope: outputSelector });
   const result = await waitForValue(
     client,
     () => `navigator.clipboard.readText()
@@ -2671,12 +2679,12 @@ async function verifyCopySvg(client) {
   };
 }
 
-async function verifySvgDownload(client, label) {
+async function verifySvgDownload(client, label, outputSelector = null) {
   await fs.rm(downloadsDir, { recursive: true, force: true });
   await fs.mkdir(downloadsDir, { recursive: true });
   const before = new Set(await listDownloads());
   await configureDownloads(client).catch(() => {});
-  await clickButtonMatching(client, "/Download/i", { reject: "/ZIP|batch/i" });
+  await clickButtonMatching(client, "/Download/i", { reject: "/ZIP|batch/i", scope: outputSelector });
   const file = await waitForDownload(before, ".svg", 12_000);
   const fullPath = path.join(downloadsDir, file);
   const text = await fs.readFile(fullPath, "utf8");
@@ -2814,7 +2822,9 @@ async function clickButtonIfPresent(client, patternSource, options = {}) {
   return evaluate(client, `(() => {
     const pattern = ${patternSource};
     const reject = ${options.reject || "null"};
-    const buttons = Array.from(document.querySelectorAll("button, a, [role='button'], summary"));
+    const scope = ${JSON.stringify(options.scope || null)};
+    const container = scope ? document.querySelector(scope) : document;
+    const buttons = Array.from(container?.querySelectorAll("button, a, [role='button'], summary") || []);
     const target = buttons.find((candidate) => {
       const text = (candidate.textContent || candidate.getAttribute("aria-label") || "").trim();
       if (!pattern.test(text) || (reject && reject.test(text)) || candidate.disabled) return false;
@@ -3352,6 +3362,11 @@ function getRoutePresetMatchers(route) {
   if (process.env.VTRACER_PRESET_PATTERN) {
     return [process.env.VTRACER_PRESET_PATTERN];
   }
+  if (route.id === "icon-to-svg-converter") {
+    // Upload already runs the default layered preset. Selecting it again can
+    // reuse that identical output; exercise a distinct preset here.
+    return ["^Layered color SVG - Smoother\\b"];
+  }
   if (route.path === "/") {
     return ["^Layered color SVG\\b", "^Layered - "];
   }
@@ -3471,22 +3486,46 @@ function convertButtonStateExpression() {
   })()`;
 }
 
-async function waitForOutput(client, timeoutMs, expectedEngine = null) {
+async function waitForOutput(client, timeoutMs, expectedEngine = null, expectedIdentity = null) {
   return waitForValue(
     client,
     () => `(async () => {
       const expectedEngine = ${JSON.stringify(expectedEngine)};
+      const expectedIdentity = ${JSON.stringify(expectedIdentity)};
+      const debug = Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__)
+        ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__
+        : [];
+      const selectedRun = expectedIdentity
+        ? [...debug].reverse().find(event => event.time >= expectedIdentity.startedAfter && ["client-attempt-start", "cache-hit", "in-flight-join"].includes(event.stage))
+        : null;
+      const selectedCompletion = selectedRun
+        ? [...debug].reverse().find(event =>
+            (event.clientRunId === selectedRun.clientRunId ||
+              (selectedRun.stage === "in-flight-join" && selectedRun.conversionCacheKey && event.conversionCacheKey === selectedRun.conversionCacheKey && event.time >= selectedRun.time)) &&
+            ["client-attempt-success", "server-cache-write", "cache-hit"].includes(event.stage))
+        : null;
       const outputs = Array.from(document.querySelectorAll("[data-engine-used]"))
         .filter((candidate) => {
           const engine = candidate.getAttribute("data-engine-used");
-          return engine === "vtracer" || engine === "potrace" || engine === "centerline";
+          if (engine !== "vtracer" && engine !== "potrace" && engine !== "centerline") return false;
+          if (!expectedIdentity) return true;
+          if (!(candidate.innerText || "").includes(expectedIdentity.presetLabel)) return false;
+          if (debug.length === 0) return true; // Homepage uses its own tracing orchestration.
+          if (!selectedCompletion) return false;
+          const jobId = candidate.getAttribute("data-job-id");
+          if (jobId) return jobId === selectedRun.clientRunId && candidate.getAttribute("data-job-status") === "succeeded";
+          const stamp = Number(candidate.getAttribute("data-output-stamp"));
+          if (expectedIdentity.routeId === "png-to-layered-svg-for-cricut") {
+            // This route stamps its pending card at submission, before the
+            // worker starts. Only the card from that submission may match.
+            const submittedAt = Number(/^png-layered-(\\d+)-\\d+$/.exec(selectedRun.clientRunId || "")?.[1]);
+            return submittedAt >= expectedIdentity.startedAfter && stamp >= submittedAt && stamp <= selectedRun.time;
+          }
+          return stamp >= selectedCompletion.time;
         });
       const output = expectedEngine
         ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === expectedEngine)
         : outputs[0];
-      const debug = Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__)
-        ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__
-        : [];
       const lastClientSuccess = [...debug].reverse().find((event) => event.stage === "client-attempt-success" && event.engineUsed);
       const lastFallback = [...debug].reverse().find((event) => event.stage === "server-fallback-submit");
       const body = document.body.innerText || "";
@@ -3590,6 +3629,20 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       }
       return {
         hasOutput: Boolean(output),
+        outputStamp: output?.getAttribute("data-output-stamp") || null,
+        expectedPreset: expectedIdentity?.presetLabel || null,
+        completedClientRunId: selectedCompletion?.clientRunId || null,
+        outputIdentity: {
+          expectedPreset: expectedIdentity?.presetLabel || null,
+          presetId: selectedRun?.presetId || (selectedRun?.conversionCacheKey ? JSON.parse(selectedRun.conversionCacheKey).settings?.presetId : null),
+          expectedClientRunId: selectedRun?.clientRunId || null,
+          completedClientRunId: selectedCompletion?.clientRunId || null,
+          completionTime: selectedCompletion?.time || null,
+          cardJobId: output?.getAttribute("data-job-id") || null,
+          cardStatus: output?.getAttribute("data-job-status") || null,
+          cardStamp: output?.getAttribute("data-output-stamp") || null,
+          cardHeading: outputText.split(/\\r?\\n/)[0] || null,
+        },
         outputCount: outputs.length,
         engineUsed: inferredEngine,
         previewDecoded,

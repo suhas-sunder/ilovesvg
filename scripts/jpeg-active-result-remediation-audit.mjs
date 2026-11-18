@@ -218,8 +218,8 @@ check(
 check(
   jpegSource.includes("retrySubmission?.ownership") &&
     jpegSource.includes("retrySubmission?.ownership.sequence") &&
-    /submitted\.replaceStamp,\s+submitted,\s+\)/s.test(jpegSource),
-  "BUSY retry retains the original submission ownership and ordering",
+    !jpegSource.includes("Server busy, retrying in"),
+  "Manual retry ownership remains supported without an automatic BUSY resubmission loop",
 );
 check(
   outputPanelSource.includes("data-active-output") &&

@@ -9,6 +9,9 @@ const PORT = Number.parseInt(process.env.PORT || "3000");
 const ACCESS_LOGS_ENABLED = process.env.ILOVESVG_ACCESS_LOGS === "1";
 const MAX_LOGGED_PATH_LENGTH = 180;
 
+// npm start loads a production build even when NODE_ENV was omitted. Keep
+// Express/SSR error responses in production mode instead of exposing stacks.
+if (!DEVELOPMENT) process.env.NODE_ENV = "production";
 const app = express();
 
 morgan.token("safe-path", (req) => sanitizeLoggedPath(getRawRequestUrl(req)));
@@ -198,6 +201,11 @@ if (DEVELOPMENT) {
   app.use(reactRouterApp);
 }
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", (error) => {
+  if (error) {
+    console.error("[server] listen failed", sanitizeErrorForLog(error));
+    process.exitCode = 1;
+    return;
+  }
   console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });

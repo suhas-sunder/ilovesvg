@@ -12,6 +12,7 @@ const sharedTracingDir = path.join(rootDir, "app", "shared", "tracing");
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-conversion-cache-audit");
 
 const moduleFiles = [
+  "prepareRasterUpload",
   "settings",
   "conversionCacheVersion",
   "stableSerialize",

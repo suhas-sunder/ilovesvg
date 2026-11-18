@@ -526,9 +526,30 @@ assert.doesNotMatch(
 );
 
 for (const route of expected) {
+  const currentSource = read(route.source);
+  const baselineSource = readAtBase(route.source);
+  const oldBusyCopy = "Server is busy converting other images. We'll retry automatically.";
+  const newBusyCopy = "Server is busy converting other images. Please wait and try again.";
+  // The November 8 reliability fix removes unbounded automatic BUSY retries.
+  // Permit this exact truthful recovery-copy change, retaining the complete
+  // historical string inventory for every other route and piece of content.
+  const manualRetryRoutes = new Set([
+    "app/routes/image-to-svg-outline.tsx",
+    "app/routes/photo-to-svg-outline.tsx",
+    "app/routes/logo-to-svg-converter.tsx",
+    "app/routes/scan-to-svg-converter.tsx",
+  ]);
+  const baselineStrings = publicStringInventory(baselineSource);
+  if (manualRetryRoutes.has(route.source)) {
+    assert.ok(baselineStrings.includes(oldBusyCopy), `${route.path} historical BUSY message missing`);
+    assert.ok(publicStringInventory(currentSource).includes(newBusyCopy), `${route.path} manual recovery message missing`);
+    assert.ok(!publicStringInventory(currentSource).includes(oldBusyCopy), `${route.path} still promises automatic retries`);
+  }
   assert.deepEqual(
-    publicStringInventory(read(route.source)),
-    publicStringInventory(readAtBase(route.source)),
+    publicStringInventory(currentSource),
+    manualRetryRoutes.has(route.source)
+      ? [...new Set(baselineStrings.map((value) => value === oldBusyCopy ? newBusyCopy : value))].sort()
+      : baselineStrings,
     `${route.path} public strings changed during ownership integration.`,
   );
 }

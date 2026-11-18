@@ -32,7 +32,7 @@ export function acquireInFlightConversion(
   start: (signal: AbortSignal) => InFlightPromise,
 ): InFlightConversionHandle {
   const existing = inFlightConversions.get(key);
-  if (existing) {
+  if (existing && !existing.controller.signal.aborted) {
     existing.consumers += 1;
     return createHandle(existing, true);
   }

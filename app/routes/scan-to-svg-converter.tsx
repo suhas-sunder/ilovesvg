@@ -203,7 +203,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error:
-            "Server is busy converting other images. We'll retry automatically.",
+            "Server is busy converting other images. Please wait and try again.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -893,20 +893,13 @@ export default function ScanToSvgConverter({
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
   React.useEffect(() => {
-    if (fetcher.data?.error) setErr(fetcher.data.error);
-    else setErr(null);
-
     if (fetcher.data?.retryAfterMs) {
-      const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const t = setTimeout(() => {
-        if (file) submitConvert();
-      }, ms);
-      return () => clearTimeout(t);
+      const seconds = Math.max(1, Math.ceil(fetcher.data.retryAfterMs / 1000));
+      setErr(`${fetcher.data.error || "Server is busy."} Wait at least ${seconds}s, then try converting again.`);
     } else {
-      setInfo(null);
+      setErr(fetcher.data?.error ?? null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInfo(null);
   }, [fetcher.data]);
 
   React.useEffect(() => {

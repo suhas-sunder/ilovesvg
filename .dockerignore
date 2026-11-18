@@ -3,3 +3,8 @@ build
 node_modules
 README.md
 ai-issues/
+.git
+.tmp
+tmp
+logs
+*.log
