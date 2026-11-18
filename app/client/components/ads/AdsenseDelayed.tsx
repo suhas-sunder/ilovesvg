@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -37,35 +37,9 @@ export function AdSenseDelayed({
   const pushedSlotRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const retryRef = useRef<number | null>(null);
-  const fillCheckTimersRef = useRef<number[]>([]);
   const insRef = useRef<HTMLModElement | null>(null);
 
   const reserveHeight = maxHeight ?? minHeight;
-
-  const [isFilled, setIsFilled] = useState(false);
-
-  const isActuallyFilled = () => {
-    const ins = insRef.current;
-    if (!ins) return false;
-
-    const status = ins.getAttribute("data-ad-status");
-    if (status === "unfilled") return false;
-    if (status === "filled") return true;
-
-    const iframe = ins.querySelector("iframe") as HTMLIFrameElement | null;
-    if (!iframe) return false;
-
-    const r = iframe.getBoundingClientRect();
-    const w = r.width || iframe.offsetWidth || 0;
-    const h = r.height || iframe.offsetHeight || 0;
-
-    return w >= 200 && h >= 50;
-  };
-
-  const updateFilled = () => {
-    const nextFilled = isActuallyFilled();
-    setIsFilled((current) => (current === nextFilled ? current : nextFilled));
-  };
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -81,13 +55,6 @@ export function AdSenseDelayed({
     }
   };
 
-  const clearFillCheckTimers = () => {
-    for (const timer of fillCheckTimersRef.current) {
-      window.clearTimeout(timer);
-    }
-    fillCheckTimersRef.current = [];
-  };
-
   const tryPush = () => {
     if (typeof window === "undefined" || !window.adsbygoogle) return false;
     if (pushedSlotRef.current === slot) return true;
@@ -98,11 +65,6 @@ export function AdSenseDelayed({
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushedSlotRef.current = slot;
-
-      clearFillCheckTimers();
-      fillCheckTimersRef.current = [250, 900, 2000, 4000].map((ms) =>
-        window.setTimeout(updateFilled, ms),
-      );
 
       return true;
     } catch {
@@ -129,7 +91,6 @@ export function AdSenseDelayed({
     if (typeof window === "undefined") return;
 
     pushedSlotRef.current = null;
-    setIsFilled((current) => (current === false ? current : false));
 
     const removeInteractionListeners = () => {
       window.removeEventListener("pointerdown", onFirstInteraction);
@@ -144,7 +105,6 @@ export function AdSenseDelayed({
 
     clearTimer();
     clearRetry();
-    clearFillCheckTimers();
 
     if (afterInteraction) {
       window.addEventListener("pointerdown", onFirstInteraction, {
@@ -160,44 +120,13 @@ export function AdSenseDelayed({
       removeInteractionListeners();
       clearTimer();
       clearRetry();
-      clearFillCheckTimers();
     };
   }, [slot, delayMs, afterInteraction]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const ins = insRef.current;
-    if (!ins) return;
-
-    updateFilled();
-
-    const observer = new MutationObserver(() => {
-      updateFilled();
-    });
-
-    observer.observe(ins, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-    });
-
-    const t1 = window.setTimeout(updateFilled, 1500);
-    const t2 = window.setTimeout(updateFilled, 4000);
-    const t3 = window.setTimeout(updateFilled, 7000);
-
-    return () => {
-      observer.disconnect();
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slot]);
-
   return (
     <div
-      className={["relative", className].join(" ")}
+      className={["relative isolate", className].join(" ")}
+      data-ad-container=""
       style={{
         height: minHeight,
         overflow: "hidden",
@@ -208,11 +137,10 @@ export function AdSenseDelayed({
       {showPlaceholder && (
         <div
           className={[
-            "pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-lg border border-slate-200 bg-slate-50",
-            "transition-opacity duration-200",
-            isFilled ? "opacity-0" : "opacity-100",
+            "pointer-events-none absolute inset-0 z-0 grid place-items-center rounded-lg border border-slate-200 bg-slate-50",
           ].join(" ")}
           aria-hidden="true"
+          data-ad-placeholder=""
         >
           <div className="flex flex-col items-center gap-2">
             <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12px] text-slate-500">
@@ -234,6 +162,8 @@ export function AdSenseDelayed({
         className="adsbygoogle"
         style={{
           display: "block",
+          position: "relative",
+          zIndex: 1,
           margin: "0 auto",
           width: "100%",
           minWidth: "250px",

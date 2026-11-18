@@ -1,7 +1,7 @@
 name: Technical reliability release validation
 on:
   pull_request:
-    branches: [main]
+    branches: [main, release/2026-W46-ilovesvg-consolidated]
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,7 +28,7 @@ jobs:
           printf 'test-context-sentinel' > tmp/context-sentinel
           docker build --target development-dependencies-env -t ilovesvg-source-check .
           docker run --rm --entrypoint sh ilovesvg-source-check -ec 'test ! -e /app/.tmp; test ! -e /app/tmp; test ! -e /app/.git; test ! -e /app/logs'
-          docker run --rm --entrypoint sh ilovesvg-source-check -ec 'npm run typecheck; npm test; node --check server.js'
+          docker run --rm --entrypoint sh ilovesvg-source-check -ec 'npm run typecheck; npm test; node scripts/ad-placeholder-safety-test.mjs; node --check server.js'
           docker build --label org.opencontainers.image.revision="${revision}" -t ilovesvg-release-check .
           docker build --target build-env -t ilovesvg-built-check .
           docker run --rm --entrypoint sh ilovesvg-built-check -ec 'node scripts/server-startup-collision-test.mjs; npm run test:native-memory'

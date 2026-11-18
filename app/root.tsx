@@ -16,6 +16,7 @@ import { UltraWideSidebarAds } from "./client/components/ads/UltraWideSidebarAds
 import NavBar from "./client/components/navigation/NavBar";
 import { logAppError } from "./client/lib/errorLogging";
 import { shouldRenderAdsForPath } from "./client/lib/monetization/monetizationPolicy";
+import { AD_PLACEHOLDER_SAFETY_SCRIPT } from "./client/lib/monetization/adPlaceholderSafety";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -77,10 +78,12 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-US">
+    // The early safety script owns one monotonic attribute on this element.
+    <html lang="en-US" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script dangerouslySetInnerHTML={{ __html: AD_PLACEHOLDER_SAFETY_SCRIPT }} />
         <Meta />
         <Links />
       </head>
